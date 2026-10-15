@@ -6,10 +6,14 @@ struct SpeechSettings: View {
     @ObservedObject var speech: SpeechEngine
     @ObservedObject var model: AppModel
     @State private var showPronunciation = false
+    @State private var showPrivacy = false
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Button("隐私与使用说明", systemImage: "hand.raised") { showPrivacy = true }.accessibilityIdentifier("speechPrivacyPolicy")
+                }
                 Section("普通话音色") {
                     if !speech.offlineReady { Text("离线音色文件缺失").foregroundStyle(.secondary) }
                     Group {
@@ -85,6 +89,7 @@ struct SpeechSettings: View {
             }
         }.frame(minWidth: 300, idealWidth: 480, minHeight: 420, idealHeight: 560)
         .onAppear { speech.refreshVoices() }
+        .sheet(isPresented: $showPrivacy) { PrivacyView() }
         .sheet(isPresented: $showPronunciation) { PronunciationSettings(speech: speech, model: model).buttonStyle(KeycapButtonStyle()) }
     }
 }

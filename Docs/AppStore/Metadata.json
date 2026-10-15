@@ -1,0 +1,31 @@
+{
+  "status": "preparation-not-submitted",
+  "bundle_id": "org.ailifelab.InkEngine",
+  "marketing_version": "0.3.1",
+  "first_submission_build": "must exceed the latest build in App Store Connect",
+  "suggested_primary_category": "Productivity",
+  "suggested_secondary_category": "Books",
+  "pricing": "pending-owner-confirmation",
+  "platforms": "pending-owner-confirmation",
+  "territories": "pending-owner-confirmation",
+  "copyright": "2026 AILife Lab (confirm legal rights holder before submission)",
+  "support_url": "https://ailifelab.com/apps/inkengine/",
+  "privacy_url": "https://github.com/ailifelab/InkEngine/blob/main/App/Resources/Legal/privacy-zh-Hans.md",
+  "localizations": {
+    "zh-Hans": {
+      "name": "墨语引擎",
+      "subtitle": "本地文稿编辑与离线听读校稿",
+      "keywords": "写作,文稿,编辑器,阅读,朗读,听书,校稿,小说,离线,Markdown,书签,纠音",
+      "promotional_text": "把写下来的文字，读给自己听。在本机编辑、阅读与听读，发现句子中不顺口的地方。",
+      "description": "墨语引擎是一款文稿编辑与离线听读工具。\n\n写作与修改：在 Mac 上直接编辑你选择的原文件，在 iPhone 和 iPad 上导入和管理本机文稿。支持纯文本与 Markdown，提供查找、替换及阅读模式。\n\n听读校稿：使用本机声音朗读文稿，支持暂停、继续、调速和段落跳转。可为人名、地名和多音字添加纠音规则。\n\n继续阅读：保存阅读位置，使用章节目录和书签回到需要修改的地方。\n\n附近同步：与自己配对的设备在局域网内手动传输所选内容，无需注册云端账号。该功能需要局域网权限，双方需确认配对。\n\n隐私：内置声音在本机合成，不把正文发送给云端语音服务。你主动使用系统分享、云盘文件提供器或打开外部网站时，适用相应服务的规则。\n\n本应用不提供小说资源库。请导入你有权使用的内容，并为重要原文件保留备份。"
+    },
+    "en-US": {
+      "name": "Ink Engine",
+      "subtitle": "Write, read and listen offline",
+      "keywords": "writing,editor,reader,proofreading,offline,Markdown,manuscript,bookmarks,text,speech",
+      "promotional_text": "Listen to your own writing. Edit local documents, keep your reading place and hear sentences with on-device voices.",
+      "description": "Ink Engine is a local document editor and reader for writing and listening back to your work.\n\nEdit plain text and Markdown. Open your chosen source files on Mac, or import and manage local documents on iPhone and iPad. Find, replace and switch between editing and reading.\n\nListen with bundled on-device voices. Pause, resume, change playback speed and move between paragraphs. Add pronunciation corrections for names and difficult words.\n\nKeep your place with reading positions, chapters and bookmarks. Transfer selected content over the local network to a device you have paired with. Nearby transfer requires Local Network permission and confirmation on both devices. No cloud account is required.\n\nBundled voices synthesize locally without sending manuscripts to a cloud TTS service. External sharing, file providers and websites you choose use their own services and policies.\n\nInk Engine does not provide a novel catalog. Import content you have the right to use and keep backups of important files."
+    }
+  },
+  "privacy_contact": "sherardchina@gmail.com (existing public product contact; confirm deliverability)"
+}

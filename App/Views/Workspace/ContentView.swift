@@ -21,6 +21,7 @@ struct ContentView: View {
     @State private var compactColumn: NavigationSplitViewColumn = .sidebar
     @State private var mobileWidth: CGFloat = 0
     @State private var showSettings = false
+    @State private var showPrivacy = false
     @State private var showOutline = false
     @State private var showSearch = false
     @State private var replaceTab = false
@@ -75,6 +76,7 @@ struct ContentView: View {
                 }
             }
         }
+        .sheet(isPresented: $showPrivacy) { PrivacyView() }
         .sheet(isPresented: $showSettings) { SpeechSettings(speech: model.speech, model: model).buttonStyle(KeycapButtonStyle()) }
         .sheet(isPresented: $showSearch) { SearchReplacePanel(model: model, replacing: replaceTab).buttonStyle(KeycapButtonStyle()) }
         .sheet(isPresented: $showBookmarks) { BookmarksView(model: model).buttonStyle(KeycapButtonStyle()) }
@@ -149,6 +151,7 @@ struct ContentView: View {
             case "bookmarks": if !model.editing { model.commitEditing(); showBookmarks = true }
             case "cache": model.commitEditing(); showCache = true
             case "save": save()
+            case "privacy": showPrivacy = true
             case "settings": model.commitEditing(); showSettings = true
             case "history": returnToLibrary()
             default: break
@@ -248,6 +251,7 @@ struct ContentView: View {
                 }.buttonStyle(KeycapButtonStyle(compact: horizontalSizeClass == .regular))
                     .lineLimit(1).minimumScaleFactor(0.85).padding(.horizontal, 14).padding(.bottom, 16)
                 }
+                Button("隐私与使用说明", systemImage: "hand.raised") { showPrivacy = true }.accessibilityIdentifier("privacyPolicy").padding(.horizontal, 14).padding(.bottom, 12)
                 Button { chooseImport(folder: true) } label: { Label("添加小说目录", systemImage: "folder.badge.plus").frame(maxWidth: .infinity) }
                     .accessibilityIdentifier("importNovel").padding(.horizontal, 14).padding(.bottom, 12)
                 #endif
@@ -523,6 +527,7 @@ struct ContentView: View {
             Button("同步数据到设备…", systemImage: "arrow.triangle.2.circlepath") { if let book = model.book { model.chooseSync(.init(id: book.id)) } }.accessibilityIdentifier("syncDocument")
             Divider()
             Button("字号与朗读设置", systemImage: "textformat.size") { model.commitEditing(); showSettings = true }.accessibilityIdentifier("speechSettings")
+            Button("隐私与使用说明", systemImage: "hand.raised") { showPrivacy = true }.accessibilityIdentifier("privacyPolicy")
             Button("返回历史记录", systemImage: "books.vertical") { returnToLibrary() }.accessibilityIdentifier("returnLibrary")
         } label: { Image(systemName: "ellipsis").frame(width: 18) }.menuStyle(.button).buttonStyle(KeycapButtonStyle()).accessibilityIdentifier("documentMenu")
     }
@@ -545,6 +550,7 @@ struct ContentView: View {
                 Button("打开本地文件…", systemImage: "folder") { chooseImport() }
                 Button("添加小说目录…", systemImage: "folder.badge.plus") { chooseImport(folder: true) }.accessibilityIdentifier("importNovel")
                 Button("继续上次阅读", systemImage: "bookmark") { Task { await model.resumeLast() } }
+                Button("隐私与使用说明", systemImage: "hand.raised") { showPrivacy = true }.accessibilityIdentifier("privacyPolicy")
                 Button("附近设备", systemImage: "laptopcomputer.and.iphone") { model.showNearby = true }
             } label: { Label("历史记录", systemImage: "books.vertical") }
                 .menuStyle(.button).buttonStyle(KeycapButtonStyle(compact: true)).menuIndicator(.hidden)
@@ -557,6 +563,7 @@ struct ContentView: View {
             Menu {
                 Button("添加小说目录…", systemImage: "folder.badge.plus") { chooseImport(folder: true) }.accessibilityIdentifier("importNovel")
                 Button("继续上次阅读", systemImage: "bookmark") { Task { await model.resumeLast() } }.accessibilityIdentifier("resumeLast")
+                Button("隐私与使用说明", systemImage: "hand.raised") { showPrivacy = true }.accessibilityIdentifier("privacyPolicy")
                 Button("附近设备", systemImage: "laptopcomputer.and.iphone") { model.showNearby = true }.accessibilityIdentifier("nearbyDevices")
                 Divider()
             } label: { Image(systemName: "ellipsis").frame(width: 14) }
@@ -594,6 +601,7 @@ struct ContentView: View {
                 Divider()
                 Button("字号与朗读设置", systemImage: "slider.horizontal.3") { model.commitEditing(); showSettings = true }.accessibilityIdentifier("speechSettings")
                 Divider()
+                Button("隐私与使用说明", systemImage: "hand.raised") { showPrivacy = true }.accessibilityIdentifier("privacyPolicy")
                 Button("返回历史记录", systemImage: "books.vertical") { returnToLibrary() }
             } label: { Image(systemName: "ellipsis").frame(width: 14) }
                 .menuStyle(.button).buttonStyle(KeycapButtonStyle(compact: true)).menuIndicator(.hidden).fixedSize().accessibilityIdentifier("documentMenu").help("当前文稿选项")

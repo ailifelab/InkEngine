@@ -65,6 +65,9 @@ private struct DocumentCommands: Commands {
     @ObservedObject var model: AppModel
     @ObservedObject var speech: SpeechEngine
     var body: some Commands {
+            CommandGroup(after: .appInfo) {
+                Button("隐私与使用说明…") { action("privacy") }
+            }
             CommandGroup(after: .windowArrangement) {
                 Button("显示主窗口") { openWindow(id: "workspace") }.keyboardShortcut("0", modifiers: [.command])
             }
@@ -133,8 +136,7 @@ struct WindowDragRegion: NSViewRepresentable {
         override func mouseDown(with event: NSEvent) {
             guard let window else { return }
             if event.clickCount == 2 {
-                if UserDefaults.standard.string(forKey: "AppleActionOnDoubleClick") == "Minimize" { window.miniaturize(nil) }
-                else { window.zoom(nil) }
+                window.performZoom(nil)
             } else { window.performDrag(with: event) }
         }
     }
