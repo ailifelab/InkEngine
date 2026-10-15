@@ -4,6 +4,7 @@ cd "${0:A:h}/.."
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 export PATH="$DEVELOPER_DIR/usr/bin:$PATH"
 python3 Scripts/prepare_speech.py --verify
+python3 Scripts/prepare_legal.py --check
 swift Scripts/make_icons.swift "$PWD"
 swift Scripts/verify_branding.swift "$PWD"
 case "${1:-mac}" in

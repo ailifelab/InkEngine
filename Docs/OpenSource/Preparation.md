@@ -21,6 +21,8 @@
 | ZipVoice、Vocos、Qwen 参考音色 | 各自 Apache-2.0 文本 | ZipVoice 目录中的来源及独立 LICENSE |
 | Qwen 与 speech-swift 原生运行库 | Apache-2.0 | SpeechMac/Qwen 和 Sources/NativeQwen 中的来源及许可 |
 
+已识别的语音依赖与许可文本哈希见 `Vendor/SpeechRuntime/distribution-licenses.json`；应用内完整许可由 `Scripts/prepare_legal.py` 生成。当前直接清单不是全部静态依赖的完整 SBOM。商店分发核对的新证据、已准备的询问信与尚未获得的授权见 [依赖分发处理](../AppStore/DependencyDistribution.md)。
+
 eSpeak 的 [上游许可](https://github.com/espeak-ng/espeak-ng/blob/master/COPYING) 需要单独遵守。公开二进制涉及对应依赖源码和构建方式，保留许可文本和上游链接不能替代完成这些义务。源码许可证不能抹去组件各自的许可。未来 App Store 分发与当前离线个人安装分开评估，不宣称“GPL 自动适合商店上架”。
 
 ## 从新克隆恢复完整应用的边界

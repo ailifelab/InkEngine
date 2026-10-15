@@ -8,7 +8,11 @@
 
 上游锁定版本 [sherpa-onnx v1.13.8 CMakeLists.txt](https://github.com/k2-fsa/sherpa-onnx/blob/v1.13.8/CMakeLists.txt) 在 ENABLE_TTS 下直接 include espeak-ng-for-piper 与 piper-phonemize；没有证实一个可以直接关闭 eSpeak 且完整保留当前模型能力的现成开关。Matcha 中英模型走 [MatchaTtsLexicon](https://github.com/k2-fsa/sherpa-onnx/blob/v1.13.8/sherpa-onnx/csrc/offline-tts-matcha-impl.h) 分支，因此替换需要真实前端和词汇覆盖回归，不能仅删除资源目录。
 
-## 可执行方向
+## 优先核实 GPL 分发安排
+
+本轮发现 eSpeak NG 组织的 iOS 应用仍在 App Store 提供，且其 Extension 明确采用 GPLv3。不能仅凭历史冲突说明，就预设所有方案必须换模型或购买另一份许可。先核对该方案与我们同进程静态链接方案的差异、当前条款及对应源码义务；处理记录和询问范围见 [DependencyDistribution.md](DependencyDistribution.md)。此案例不是对我们的授权，也不自动表明拆成扩展就能解决问题。
+
+## 备选方向（仅在确需调整时）
 
 A. **保留声音，替换前端/运行库依赖**：保留当前权重、断句、波形和播放基线；实现或移植许可兼容的文本前端/推理路径，避免链接 eSpeak 及其派生组件。对中文常用字、多音字、数字、日期、中英混读和生僻字重新做覆盖、音素和听感对照，再比较 iPhone/iPad CPU、峰值内存和连贯性。效果合格后才作为商店候选。不能先承诺替换后与当前效果完全一致。
 

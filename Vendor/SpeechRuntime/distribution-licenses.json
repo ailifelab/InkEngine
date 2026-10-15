@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 1,
+  "reviewDate": "2026-10-15",
+  "scope": "Known direct speech dependencies and identified linked components; NOT a complete attestation of all static native dependencies.",
+  "appStoreAdditionalPermissionObtained": false,
+  "components": [
+    {
+      "id": "sherpa",
+      "name": "sherpa-onnx",
+      "declaredLicense": "Apache-2.0",
+      "source": "https://github.com/k2-fsa/sherpa-onnx",
+      "revision": "v1.13.8",
+      "scope": "runtime",
+      "distributionReview": "native-transitive-inventory-pending",
+      "licenseFiles": [
+        {
+          "path": "Vendor/SpeechRuntime/Licenses/sherpa-onnx-APACHE-2.0.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        }
+      ],
+      "note": "Apache applies to Sherpa code; does not override linked component licenses."
+    },
+    {
+      "id": "onnxruntime",
+      "name": "ONNX Runtime",
+      "declaredLicense": "MIT",
+      "source": "https://github.com/microsoft/onnxruntime",
+      "revision": "v1.28.1",
+      "scope": "runtime",
+      "distributionReview": "standard-license-obligations",
+      "licenseFiles": [
+        {
+          "path": "Vendor/SpeechRuntime/Licenses/onnxruntime-MIT.txt",
+          "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c"
+        },
+        {
+          "path": "Vendor/SpeechRuntime/Licenses/onnxruntime-ThirdPartyNotices.txt",
+          "sha256": "0e07b95f3a8d6230037707c5c4a2b554d12c4cb67369669ac255635528ffcee2"
+        }
+      ]
+    },
+    {
+      "id": "espeak",
+      "name": "eSpeak NG fork and bundled phoneme/dictionary data",
+      "declaredLicense": "GPL-3.0-or-later",
+      "source": "https://github.com/csukuangfj/espeak-ng",
+      "revision": "ed530aa113046142eb5115cf2fc9157854d0ffe1",
+      "scope": "runtime",
+      "distributionReview": "app-store-arrangement-unconfirmed",
+      "licenseFiles": [
+        {
+          "path": "Vendor/SpeechRuntime/Licenses/espeak-ng-GPL-3.0.txt",
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+        },
+        {
+          "path": "Vendor/SpeechRuntime/Licenses/espeak-ng-Unicode.txt",
+          "sha256": "be029c50df83105a810e391778b6edcb522d6cb4b4e142332aca54437a499bf7"
+        },
+        {
+          "path": "Vendor/SpeechRuntime/Licenses/espeak-ng-BSD-2-Clause.txt",
+          "sha256": "a8b0c1c7d7af6c0415c068be8cf373799d1a42b0707b79dc4ccfcaf593cd902d"
+        },
+        {
+          "path": "Vendor/SpeechRuntime/Licenses/espeak-ng-APACHE-2.0.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        }
+      ],
+      "additionalPermission": "none-obtained",
+      "revisionEvidence": "sherpa-onnx v1.13.8 build recipe; not an independent attestation of exact prebuilt asset source",
+      "note": "ucd-tools COPYING in this fork is GPLv3; Unicode data and selected compatibility code carry separate notices."
+    },
+    {
+      "id": "piper-phonemize",
+      "name": "Piper phonemize wrapper",
+      "declaredLicense": "MIT",
+      "source": "https://github.com/csukuangfj/piper-phonemize",
+      "revision": "f3ff95afc03640bc1399e113e83361192a2fafb4",
+      "scope": "runtime",
+      "distributionReview": "standard-license-obligations",
+      "licenseFiles": [
+        {
+          "path": "Vendor/SpeechRuntime/Licenses/piper-phonemize-MIT.txt",
+          "sha256": "13746d509d74e55ea2265fbef204bb7cdbf84a8315b0207e988326cb54387028"
+        }
+      ],
+      "note": "MIT wrapper license does not cover or relicense eSpeak."
+    },
+    {
+      "id": "matcha",
+      "name": "Matcha Chinese-English checkpoint and packaged vocoder",
+      "declaredLicense": "Apache-2.0",
+      "source": "https://modelscope.cn/models/dengcunqin/matcha_tts_zh_en_20251010",
+      "revision": "see App/Resources/Speech/Matcha/SOURCE.json",
+      "scope": "model",
+      "distributionReview": "published-model-license",
+      "licenseFiles": [
+        {
+          "path": "App/Resources/Speech/Matcha/LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        }
+      ],
+      "note": "Separate from the GPL phonemization runtime; preserve per-artifact provenance."
+    },
+    {
+      "id": "zipvoice",
+      "name": "ZipVoice-Distill",
+      "declaredLicense": "Apache-2.0",
+      "source": "https://github.com/k2-fsa/ZipVoice",
+      "revision": "2f7326fbfe999a3ad179e3f1af82a424d4a62819",
+      "scope": "model",
+      "distributionReview": "published-model-license",
+      "licenseFiles": [
+        {
+          "path": "App/Resources/Speech/ZipVoice/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "id": "vocos",
+      "name": "Vocos 24kHz vocoder",
+      "declaredLicense": "MIT",
+      "source": "https://huggingface.co/charactr/vocos-mel-24khz",
+      "revision": "0feb3fdd929bcd6649e0e7c5a688cf7dd012ef21",
+      "scope": "model",
+      "distributionReview": "published-model-license",
+      "licenseFiles": [
+        {
+          "path": "App/Resources/Speech/ZipVoice/VOCOS-LICENSE",
+          "sha256": "8f36ba0c214d4f487ffd7ee0b8528da9b67b459bef2d115de9cd001316589f46"
+        }
+      ]
+    },
+    {
+      "id": "qwen",
+      "name": "Qwen3-TTS CustomVoice model and synthetic reference provenance",
+      "declaredLicense": "Apache-2.0",
+      "source": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+      "revision": "see SpeechMac/Qwen/SOURCE.json and Speech/ZipVoice/SOURCE.json",
+      "scope": "model",
+      "distributionReview": "published-model-license",
+      "licenseFiles": [
+        {
+          "path": "App/Resources/Speech/ZipVoice/QWEN-REFERENCE-LICENSE",
+          "sha256": "a44a6081c73ad75f0255bb2bb5cab74ef1829565a895a24e53a4f11290ab7655"
+        },
+        {
+          "path": "App/Resources/SpeechMac/Qwen/LICENSE-model",
+          "sha256": "a44a6081c73ad75f0255bb2bb5cab74ef1829565a895a24e53a4f11290ab7655"
+        }
+      ],
+      "note": "Model license record is not a separate endorsement or voice/personality-rights grant; references are locally synthesized, not user recordings."
+    },
+    {
+      "id": "speech-swift",
+      "name": "speech-swift adapted Qwen runtime",
+      "declaredLicense": "Apache-2.0",
+      "source": "https://github.com/soniqo/speech-swift",
+      "revision": "cbcdfc6be5e723952d29ab6e32af5e22ad8e70fa",
+      "scope": "runtime-and-conversion",
+      "distributionReview": "standard-license-obligations",
+      "licenseFiles": [
+        {
+          "path": "Vendor/SpeechRuntime/Sources/NativeQwen/LICENSE.txt",
+          "sha256": "8b86cbde30daef6bfac0780dee1649be3b2de2abf4ecdefd5b7099df212c5a1d"
+        },
+        {
+          "path": "Scripts/NativeSpeech/SPEECH-SWIFT-LICENSE",
+          "sha256": "8b86cbde30daef6bfac0780dee1649be3b2de2abf4ecdefd5b7099df212c5a1d"
+        }
+      ],
+      "modifications": "Local model loading, actor adapter, Core ML integration and cancellation; see NATIVE-SPEECH-SOURCES.json."
+    },
+    {
+      "id": "mobius",
+      "name": "Mobius adapted Core ML conversion code",
+      "declaredLicense": "Apache-2.0",
+      "source": "https://github.com/FluidInference/mobius",
+      "revision": "upstream revision not recorded; attribution retained, provenance still pending",
+      "scope": "conversion-only",
+      "distributionReview": "exact-upstream-revision-pending",
+      "licenseFiles": [
+        {
+          "path": "Scripts/NativeSpeech/MOBIUS-LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ],
+      "modifications": "Pinned upstream ZipVoice-Distill checkpoint and local conversion changes; not LuxTTS model weights."
+    }
+  ],
+  "precedent": {
+    "store": "https://apps.apple.com/us/app/espeak-ng/id6444089174",
+    "sourceLicense": "https://github.com/espeak-ng/espeak-ng-ios-app/blob/master/LICENSE.md",
+    "finding": "GPLv3 extension and MIT application described by upstream; precedent only, not permission for this project."
+  }
+}
