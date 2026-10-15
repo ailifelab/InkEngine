@@ -2,6 +2,8 @@
 
 ## Mac
 
+下载入口：[GitHub Releases 0.3.1](https://github.com/ailifelab/InkEngine/releases/tag/v0.3.1)，包含 DMG 和 SHA-256 校验文件。
+
 本次正式包：`InkEngine-0.3.1-macOS-arm64-local.dmg`。Apple 芯片 Mac（M1 或更新）、macOS 26 或更新。打开 DMG，将 `Ink Engine.app` 拖入 Applications；更新时先退出旧应用再替换。日常只使用 `/Applications/Ink Engine.app`，保留原书库和偏好，不需要 Xcode。
 
 此本地安装包使用临时签名，未进行 Apple 公证。经网络下载或转给另一台 Mac 后，可能需要在系统设置的“隐私与安全性”允许打开。不能宣称已公证，也不能将开发者账号证书装进公开源码。面向其他用户的正式分发需另行准备 Developer ID 签名、公证和依赖许可证合规。

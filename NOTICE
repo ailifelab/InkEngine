@@ -10,4 +10,6 @@ never replaces upstream license terms. See Docs/OpenSource/Preparation.md,
 Vendor/SpeechRuntime/Licenses, Sources/NativeQwen/LICENSE.txt (within the vendor
 package), Scripts/NativeSpeech/*-LICENSE, and model SOURCE.json/license records.
 Model weights and prebuilt runtime frameworks are not part of this source Git
-repository. Personal signed IPA/DMG packages are not public release assets.
+repository. The macOS ad-hoc signed DMG is distributed separately through
+GitHub Releases. Personal development-signed IPA packages, signing credentials,
+provisioning profiles, and private user data are not public release assets.
