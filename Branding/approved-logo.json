@@ -1,0 +1,11 @@
+{
+  "revision": "colorless-liquid-glass-midnight-v3",
+  "description": "User-confirmed 2026-10-15 production palette: deep ink navy with restrained cool teal light. Original pearl-white typewriter, left gramophone horn, paper and colorless liquid-glass logo source remain unchanged.",
+  "appIcon": "inkengine-appicon-midnight.png",
+  "brandIcon": "inkengine-appicon-midnight.png",
+  "sourceHashes": {
+    "inkengine-logo-liquid-glass.png": "43fc6ce2f8bd061c0b0dbdb53eaa444da6e0d345cdaf5b91367f0a911ddda9d7",
+    "inkengine-appicon-midnight.png": "f8df023c06fc9d5d58be81fa70411e55fd5e4c26dbfb6ca2e300383f0637c137",
+    "inkengine-background-midnight.png": "3db83b56c14c646bc59449f951183a01ec53c0d78e3df0bc053058e37bf9f9b3"
+  }
+}

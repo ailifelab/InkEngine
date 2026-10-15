@@ -1,0 +1,135 @@
+{
+  "model": "ZipVoice-Distill",
+  "steps": 4,
+  "runtime": "Apple Core ML / Accelerate",
+  "precision": "float16",
+  "computeUnits": "cpuOnly",
+  "source": {
+    "repository": "https://github.com/k2-fsa/ZipVoice",
+    "revision": "2f7326fbfe999a3ad179e3f1af82a424d4a62819",
+    "weights": "https://huggingface.co/k2-fsa/ZipVoice",
+    "weightsRevision": "889dd609a42f0de9cf9aac335eae42677becb1b9",
+    "weightSHA256": "6a2580c60d47997be75e0b945740169efa2c151cb7f4f0c1b63ddd6ab76dd789",
+    "license": "Apache-2.0"
+  },
+  "vocoder": {
+    "repository": "https://github.com/gemelo-ai/vocos",
+    "weights": "charactr/vocos-mel-24khz",
+    "revision": "0feb3fdd929bcd6649e0e7c5a688cf7dd012ef21",
+    "license": "MIT",
+    "weightSHA256": "97ec976ad1fd67a33ab2682d29c0ac7df85234fae875aefcc5fb215681a91b2a"
+  },
+  "conversion": {
+    "adapter": "Scripts/NativeSpeech/convert_zipvoice_coreml.py",
+    "upstream": "https://github.com/FluidInference/mobius",
+    "license": "Apache-2.0",
+    "modifications": [
+      "Original ZipVoice-Distill checkpoint instead of LuxTTS",
+      "Static 128 tokens and 1024 frames",
+      "Swift 4-step flow integration and Accelerate ISTFT"
+    ]
+  },
+  "reference": {
+    "text": "夜风穿过窗棂，书页轻轻翻动。",
+    "source": "Synthetic Qwen3-TTS CustomVoice Serena / Core ML; no user audio",
+    "durationSeconds": 3.52,
+    "checkpoint": "mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-4bit",
+    "checkpointRevision": "08c72cad5e2fd0f41730c8bd1f28149585e46361",
+    "generationWaveSHA256": "e908d9cfbabfed035dc03b7ca5682221b74411081c0d4ebda2fe4819ae4b4e65",
+    "featuresPreparedLocally": true,
+    "frames": 330,
+    "frameConvention": "ZipVoice VocosFbank rounded duration / hop256; centered STFT extra frame trimmed"
+  },
+  "files": {
+    "FmDecoder.mlmodelc/analytics/coremldata.bin": {
+      "bytes": 243,
+      "sha256": "f5ec04fc821feb55b798d06764ff29da4b845c4113e40f1f62edb49fe2036895"
+    },
+    "FmDecoder.mlmodelc/coremldata.bin": {
+      "bytes": 504,
+      "sha256": "79cb2a7d17194db66e8023245b131443872b76e7957b6842c1e76e0b0068d8fd"
+    },
+    "FmDecoder.mlmodelc/model.mil": {
+      "bytes": 821670,
+      "sha256": "961e6f29b134444904a988bedca6011a1333c6dca389c01b9ee5a956efea5e37"
+    },
+    "FmDecoder.mlmodelc/weights/weight.bin": {
+      "bytes": 248676232,
+      "sha256": "5e056ce0e64ce6ca19f6a6cef5c224575d705eee061dce3541acb3a71fe26a96"
+    },
+    "LICENSE": {
+      "bytes": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    "QWEN-REFERENCE-LICENSE": {
+      "bytes": 11343,
+      "sha256": "a44a6081c73ad75f0255bb2bb5cab74ef1829565a895a24e53a4f11290ab7655"
+    },
+    "TextEncoder.mlmodelc/analytics/coremldata.bin": {
+      "bytes": 243,
+      "sha256": "039f389e0c66e6f1a770ec34655f3f596f3a516358d837c5659099651d162670"
+    },
+    "TextEncoder.mlmodelc/coremldata.bin": {
+      "bytes": 408,
+      "sha256": "2ed64cb7d85381881993555bd20728bc75383643240f98994b5c752c65977171"
+    },
+    "TextEncoder.mlmodelc/model.mil": {
+      "bytes": 198589,
+      "sha256": "e7862caea09c34355a170ff5e8dc7354a48960e3b6e247dd95d6850f4ee88851"
+    },
+    "TextEncoder.mlmodelc/weights/weight.bin": {
+      "bytes": 8584456,
+      "sha256": "02ea0cb84381399f8f8a269aa56ab66e06533d2071b375c4288000a35526def5"
+    },
+    "VOCOS-LICENSE": {
+      "bytes": 1069,
+      "sha256": "8f36ba0c214d4f487ffd7ee0b8528da9b67b459bef2d115de9cd001316589f46"
+    },
+    "Vocos.mlmodelc/analytics/coremldata.bin": {
+      "bytes": 243,
+      "sha256": "70ce4c70fae94e0e05df549e4973147d06bd5d6057d2186994a162b5aa9f633f"
+    },
+    "Vocos.mlmodelc/coremldata.bin": {
+      "bytes": 405,
+      "sha256": "e433e7e9cbb3c5ac3bfbc179f0cd1862ad9f4d6980693e55686e00af56ccced5"
+    },
+    "Vocos.mlmodelc/model.mil": {
+      "bytes": 48557,
+      "sha256": "a151caaa60967a66a7968a5706045fc1603ce89f08aac01171465732de971a91"
+    },
+    "Vocos.mlmodelc/weights/weight.bin": {
+      "bytes": 27068484,
+      "sha256": "4509dbfe0b63147b7e6d7dc8f0c208f7b88db9dc44cb1ac0682d70edfcc28cf6"
+    },
+    "lexicon.txt": {
+      "bytes": 1727147,
+      "sha256": "c94b049d970e971acdc2a7e5e7b23ca594222a9d640e417c711f2ad1e7bb7d46"
+    },
+    "reference.json": {
+      "bytes": 705621,
+      "sha256": "54d67a0a567e42276aef133530dd853190129a54898f686b621c6d38e4a2e7c4"
+    },
+    "tokens.txt": {
+      "bytes": 2570,
+      "sha256": "ce98c1afc5f7a20c2484dffdd68a1fff0a4a2cc707328833750c4476c37cdbda"
+    },
+    "reference-dylan.json": {
+      "bytes": 706831,
+      "sha256": "a25f7df764c3f2644277c51a288ec3e1fd82333fd8005eed1a62c4292ce5f807"
+    }
+  },
+  "acceleratorStatus": "CPU/ANE paired-input drift detected; ANE disabled pending graph correction and hardware parity",
+  "additionalReferences": {
+    "dylan": {
+      "file": "reference-dylan.json",
+      "text": "夜风穿过窗棂，书页轻轻翻动。",
+      "frames": 330,
+      "source": "Synthetic Qwen3-TTS CustomVoice Dylan / local MLX Metal; no user audio",
+      "speakerCodecID": 2878,
+      "checkpointRevision": "08c72cad5e2fd0f41730c8bd1f28149585e46361",
+      "waveSHA256": "dfd3b44b2329ad8bdee9bf2b67189e185248d4bee1edcb2cb4034d7ec75d525d",
+      "preparation": "First complete sentence, 3.52 seconds, natural tempo, no time stretching; VocosFbank round-to-hop trimming",
+      "license": "Apache-2.0"
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "qwen_runtime": {
+    "repository": "https://github.com/soniqo/speech-swift",
+    "revision": "cbcdfc6be5e723952d29ab6e32af5e22ad8e70fa",
+    "license": "Apache-2.0",
+    "changes": "Local-only model loader; actor adapter; cancellation and rejection of truncated output"
+  },
+  "zipvoice_conversion": {
+    "repository": "https://github.com/FluidInference/mobius",
+    "path": "models/tts/zipvoice/coreml/convert_coreml.py",
+    "changes": "Use pinned upstream k2-fsa ZipVoice-Distill checkpoint instead of LuxTTS"
+  },
+  "zipvoice_checkpoint": {
+    "repository": "https://huggingface.co/k2-fsa/ZipVoice",
+    "revision": "889dd609a42f0de9cf9aac335eae42677becb1b9",
+    "sha256": "6a2580c60d47997be75e0b945740169efa2c151cb7f4f0c1b63ddd6ab76dd789"
+  }
+}

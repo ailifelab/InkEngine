@@ -1,0 +1,34 @@
+{
+  "root": "..",
+  "project": "InkEngine.xcodeproj",
+  "scheme": "InkEngine",
+  "team_id": "",
+  "bundle_id": "org.ailifelab.InkEngine",
+  "name": "InkEngine",
+  "method": "debugging",
+  "renew_before_days": 30,
+  "prepare": [
+    [
+      "python3",
+      "Scripts/prepare_speech.py",
+      "--verify"
+    ],
+    [
+      "swift",
+      "Scripts/make_icons.swift",
+      "."
+    ],
+    [
+      "swift",
+      "Scripts/verify_branding.swift",
+      "."
+    ]
+  ],
+  "branding_verifier": "Scripts/verify_branding.swift",
+  "resource_checks": [
+    {
+      "source": "App/Resources/Speech",
+      "bundle": "Speech"
+    }
+  ]
+}

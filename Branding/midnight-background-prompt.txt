@@ -1,0 +1,15 @@
+InkEngine midnight background revision — built-in image_gen tool
+Date: 2026-10-15
+User request: Keep the current logo design, improve background visibility, and give the icon a modern premium technology palette.
+
+Only the empty background was generated. The existing transparent logo was composited using AppKit with no changes to the source artwork. The former opaque light icon remains saved as inkengine-appicon-liquid-glass.png; the former manifest and exported icon sets are in Archive/colorless-liquid-glass-v2/.
+
+Final image generation prompt:
+Use case: logo-brand. Asset type: square background plate for the Ink Engine macOS and iOS app icon; the already approved pearl-white transparent acrylic typewriter + gramophone + paper logo will be composited separately, so generate ONLY the empty background. Primary request: a restrained modern premium technology palette that makes a silver-white glass logo clearly visible at small sizes. Scene/backdrop: full-bleed 1024 by 1024 square, smooth deep ink-navy and graphite-blue satin background, approximately #071426 at the darkest edges and #1D3455 in the softly lit area, one extremely subtle diffuse cold teal glow approximately #1B5A68 near the upper right quadrant. Keep most of the background dark and evenly calm, very smooth broad gradient, subtle depth, no visible grain. Composition: empty uninterrupted field, no logo, no objects, no white areas, no bright central light, no rounded border or inset tile. Lighting/mood: elegant quiet industrial studio lighting, soft restrained cool glow, sophisticated material quality, excellent contrast for a white foreground. Constraints: NO text, NO watermark, NO icons, NO typewriter, NO gramophone, NO paper, NO circuits, NO grid, NO stars, NO waves, NO light streaks, NO shiny bezel, NO bevel, NO metallic objects; the final entire image is only the deep blue background plate.
+
+Assembly:
+swift Scripts/compose_brand_icon.swift "$PWD"
+Original mark: inkengine-logo-liquid-glass.png, SHA-256 43fc6ce2f8bd061c0b0dbdb53eaa444da6e0d345cdaf5b91367f0a911ddda9d7.
+Background: inkengine-background-midnight.png.
+Output: inkengine-appicon-midnight.png, 1254 × 1254, original mark at 89% of the canvas, 5.5% margins, restrained neutral shadow.
+Export: swift Scripts/make_icons.swift "$PWD". macOS and sidebar tiles have transparent rounded corners; iOS/iPadOS assets are full-bleed opaque RGB and receive the platform mask.

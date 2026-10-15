@@ -1,0 +1,37 @@
+{
+  "revision": "colorless-liquid-glass-midnight-v3",
+  "appIcon": "inkengine-appicon-midnight.png",
+  "brandIcon": "inkengine-appicon-midnight.png",
+  "sourceHashes": {
+    "inkengine-logo-liquid-glass.png": "43fc6ce2f8bd061c0b0dbdb53eaa444da6e0d345cdaf5b91367f0a911ddda9d7",
+    "inkengine-appicon-midnight.png": "f8df023c06fc9d5d58be81fa70411e55fd5e4c26dbfb6ca2e300383f0637c137",
+    "inkengine-background-midnight.png": "3db83b56c14c646bc59449f951183a01ec53c0d78e3df0bc053058e37bf9f9b3"
+  },
+  "assetHashes": {
+    "App/Assets.xcassets/AppIcon.appiconset/Contents.json": "576d3ff87934c8d5a6fdddf184123e3301960d0a5138abee2894f7129d2f99a8",
+    "App/Assets.xcassets/AppIcon.appiconset/mac-icon-1024.png": "327d196862f3e43fdef933fa6b09bd9d475e6a8185d4959c3987a4f121e36b0c",
+    "App/Assets.xcassets/AppIcon.appiconset/mac-icon-128.png": "dbd9a8db3eac56b278d51f2c89ab6d6ae70d0134bfedd2504766dbb6f17b487e",
+    "App/Assets.xcassets/AppIcon.appiconset/mac-icon-16.png": "149d6456543ea4dc094d30f796e9824859c81ad5cb20475dc30f0c35ed720d32",
+    "App/Assets.xcassets/AppIcon.appiconset/mac-icon-256.png": "1320721e577dd2468676ee5508482eebf0d32943489d146e3e3bb92bfe641762",
+    "App/Assets.xcassets/AppIcon.appiconset/mac-icon-32.png": "6316d94769194dca30a25afa633b76e07dd353f5cff9961033ef8d6a4613ffff",
+    "App/Assets.xcassets/AppIcon.appiconset/mac-icon-512.png": "e8d90f61d21d91c5e65d6169eb7a050e10a97c48ca0a7cbba4a0d1d9c49171c5",
+    "App/Assets.xcassets/AppIcon.appiconset/mac-icon-64.png": "82aa9188d5ddfe1f40d39a7ad9e600b467f2b4af7451628b744a1bda0f571c51",
+    "App/Assets.xcassets/AppIcon.appiconset/mobile-icon-1024.png": "703e9c2b670b487d9e263a3fc58a3a7b286a7d472ea577589f4414c2e53cb0fd",
+    "App/Assets.xcassets/AppIcon.appiconset/mobile-icon-120.png": "f83ad19062f6bf55ea55a013d9f341ba1655d5ba65d0f961a9e17f878f195fb4",
+    "App/Assets.xcassets/AppIcon.appiconset/mobile-icon-152.png": "829c84f9a383d882eb983f9e99fd61998898da35b34324923f614a5cbbfd00b9",
+    "App/Assets.xcassets/AppIcon.appiconset/mobile-icon-167.png": "ea160f2533089bd257ff05c946640d68da41e806550a47f95537178a98711f57",
+    "App/Assets.xcassets/AppIcon.appiconset/mobile-icon-180.png": "0fe3254b1af46811b78d4fb586488fc4976452f3e64da877b07f9342b6f14fb1",
+    "App/Assets.xcassets/AppIcon.appiconset/mobile-icon-20.png": "9b6d2580e86c6baaf1d3a1781208dedc2ded3b103fa0db89d5cef94b2428c967",
+    "App/Assets.xcassets/AppIcon.appiconset/mobile-icon-29.png": "e32aff6a1d9488a5600d13038ee8c329d55b98b51c03b601abef3ba45c8d6923",
+    "App/Assets.xcassets/AppIcon.appiconset/mobile-icon-40.png": "2f30717d3970b38e1007c78454a64bf70a5c2e4492fe4ccc6208fdf8c5c4995f",
+    "App/Assets.xcassets/AppIcon.appiconset/mobile-icon-58.png": "6e92cc910b364bd3e92f98dd6ac34aea8d1879aa9c5f9232e782a9782b9bb1a2",
+    "App/Assets.xcassets/AppIcon.appiconset/mobile-icon-60.png": "6176f485b0da30e783cb1d559a945f443f103c874e3799c7ed57f976bbd2bae0",
+    "App/Assets.xcassets/AppIcon.appiconset/mobile-icon-76.png": "4ecc0c88e3fe5c04d9fe1ee9bec675a0b3c5115065800828e2673fffa9f11673",
+    "App/Assets.xcassets/AppIcon.appiconset/mobile-icon-80.png": "8b3a5cd713de0f5dbbb84de6608bce19bbd1b1fe8e3007b7853a0cd1e7265059",
+    "App/Assets.xcassets/AppIcon.appiconset/mobile-icon-87.png": "f216d690283f8301b7eb6a054256f6342fd4b5e9c1efd96b1271fc24747b7c3a",
+    "App/Assets.xcassets/BrandLogo.imageset/Contents.json": "ab4e94ba1545bcf4cb1068262edc7edf790a3a4043298c5ffa01b3a4ed87efa2",
+    "App/Assets.xcassets/BrandLogo.imageset/brand-logo-1x.png": "82aa9188d5ddfe1f40d39a7ad9e600b467f2b4af7451628b744a1bda0f571c51",
+    "App/Assets.xcassets/BrandLogo.imageset/brand-logo-2x.png": "dbd9a8db3eac56b278d51f2c89ab6d6ae70d0134bfedd2504766dbb6f17b487e",
+    "App/Assets.xcassets/BrandLogo.imageset/brand-logo-3x.png": "cb6c1bbd0798e073f751874b089da0d32f561651d331191cca20746666b3d1f0"
+  }
+}

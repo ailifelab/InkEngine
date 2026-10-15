@@ -1,0 +1,56 @@
+InkEngine colorless liquid-glass revision — built-in image_gen tool
+Date: 2026-10-10
+Previous blue-glass version: Branding/Archive/liquid-glass-blue-v1/
+User request: Keep the white typewriter / left gramophone / paper design; use completely colorless transparent acrylic, round the edges more, and strengthen the liquid-glass feel.
+
+STEP 1 — COLORLESS MATERIAL EDIT
+Input: archived blue-glass transparent logo.
+
+Use case: precise-object-edit
+Asset type: revised transparent InkEngine software logo.
+Input image 1: exact existing logo to edit, whose overall design the user likes.
+Primary request: Change ONLY the acrylic material and its edge rounding. The transparent acrylic must become perfectly COLORLESS, water-clear, crystal-clear, with a much more rounded LIQUID GLASS finish. Preserve the substantial transparent outer layer around the white inner structure.
+
+Material edits:
+- Remove all cyan, blue, teal and ice-blue coloration, colored edge lighting and tinted glass from the acrylic everywhere: the typewriter body shell, gramophone horn rim, carriage surrounds, keycap sleeves and spacebar sleeve. The glass is completely unpigmented and color-neutral. It reveals the satin pearl-white opaque inner body and matte white PBT keys clearly. Render refraction and reflections in neutral white, silver and subtle gray only, like a thick optically clear droplet over white hardware.
+- Make the outer shell edges noticeably rounder and softly convex: smooth generous continuous fillets, bulging clear meniscus rims, softly pillowed glass volumes and beautiful thick curved lens-like edges. Refraction should bend the white structure visible underneath, with curved white studio highlights rolling over the surface. Clean, seamless, fluid, premium liquid glass. Do not make it faceted crystal, sharp-edged plastic, blue glass, frosted glass or chrome.
+- Each white PBT key retains its own distinct clear outer sleeve; make that sleeve's corners and top shoulder domed and rounder, especially the front edge of the spacebar. Keep the white inner caps matte and separate from the glossy transparent shell, with clean spacing.
+- The gramophone has its existing recognizable flared scalloped mouth, but the outer clear rim is a thicker softly rounded colorless glass lip. The interior is pearl white and soft neutral silver-gray rather than cyan, removing the previous blue material cast.
+- Preserve restrained neutral silver mechanical fittings, typewriter roller and white opaque paper with its existing gray print lines. Glass must feel water-clear, not metallic, milky or tinted.
+
+Invariants: Keep the vintage typewriter silhouette, the single attached gramophone horn on the viewer's LEFT, the single printed sheet emerging upward on the right, all keys and carriage placement, object orientation, perspective, lighting direction, scale and overall compact composition. Do not change objects, add elements or redesign the machine. The outer surfaces stay solid and manufactured rather than melting or dripping.
+
+Lighting: Neutral soft-white studio illumination; polished rounded refraction with gentle neutral-gray shadows and bright controlled white curved specular highlights. No colored environmental light, blue color cast, rainbow sheen or excessive glow.
+
+Background: Preserve a TRUE transparent alpha background. The complete object must be isolated and fully visible inside the square frame. No floor, tile, border, checkerboard pattern or external shadow.
+Text: No lettering or added typography; keep only the paper's abstract gray lines. Output one refined high-resolution logo.
+
+STEP 2 — EDGE ROUNDING REFINEMENT
+Input: the output of Step 1.
+
+Use case: precise-object-edit
+Asset type: final transparent InkEngine logo, edge-rounding refinement.
+Input image 1 is the new colorless glass logo. Keep its entire design and neutral white/silver/transparent palette.
+
+Make ONLY the colorless acrylic enclosure more smoothly rounded and recognizably LIQUID GLASS. This refinement must be clearly visible.
+1. On the main typewriter shell, replace the narrow irregular/faceted acrylic ridges with a thick optically clear SMOOTH continuous convex lip, like a gently pillowed water lens wrapping the white body. Use generous continuous fillets, about twice the previous edge radius, especially the front lower corners, side shoulders and perimeter. The white inner body remains sharply identifiable inside. The clear coating is thick enough to visibly refract the white edge behind it.
+2. On EACH individual white keycap and the long spacebar, preserve the matte white PBT inner cap and a separate colorless acrylic enclosure. Give each enclosure a softly domed crown and very generously rounded corners and rolled shoulders, like a clear smooth lens fitted over the white core. Keys must remain separate, recognizable and precisely spaced. Do not change the number or layout of keys.
+3. The flared gramophone mouth stays on the LEFT with its existing overall silhouette and white interior. Smooth its colorless clear outer lip into one continuous rounded bead with gently curved broad white highlights, keeping the graceful scalloped silhouette but no small facets, jagged ridges or crystalline details.
+4. Rounded glass surfaces should carry simple long curved WHITE specular highlight ribbons, gray refractive outlines and transparent transitions. Reduce busy sparkle, microscopic reflections and exaggerated chrome-like reflections in the clear enclosure. Absolutely NO blue, cyan, teal, colored tint, colored edge lights or rainbow dispersion.
+5. Clean the cutout boundary, without any opaque white halo outside the object.
+
+Invariants: Keep the object's original orientation, scale, composition, camera, typewriter geometry, mechanical roller and knobs, single LEFT gramophone horn, single paper with gray print lines, pearl-white inner housing, neutral silver fittings and key arrangement. Refine only clear acrylic edge profiles and reflections. No redesign, added objects, melting or dripping.
+Background: true transparent alpha background, preserve existing transparency. Entire object fully inside square canvas. No floor, external shadow, tile, text, border or watermark. Premium neutral-white studio lighting. One final logo.
+
+STEP 3 — APPLICATION ICON PRESENTATION
+Input: the final transparent logo from Step 2, saved as Branding/inkengine-logo-liquid-glass.png.
+
+Use case: precise-object-edit
+Asset type: final square production app icon for InkEngine.
+Input image 1: exact final logo, material and geometry to preserve.
+
+Place this EXACT colorless-liquid-glass typewriter logo into a polished square software app icon. Preserve the white typewriter, attached gramophone on the viewer's LEFT, printed paper on the right, keyboard layout, perspective, large smoothly rounded clear shell, domed clear keycap sleeves, smooth clear horn lip and spacebar. Do not redesign or add objects. The acrylic must stay COMPLETELY COLORLESS and truly clear, with transparent lens-like thick curved rims and white/gray refractive highlights. Keep the matte white PBT inner caps clearly visible under their clear sleeves. Preserve the pearl-white inner body and neutral silver mechanical fittings. Maintain a smoothly rounded droplet-like LIQUID GLASS surface. No facets, no busy sparkle, no metallic-looking replacement for the acrylic, no milky opaque glass. Clean any cutout halo.
+
+Compose the complete sculpture at approximately 79% of the square canvas, centered optically with at least 9% safe margins around the horn and body. Keep every part visible, no cropping.
+Background: neutral opaque full-bleed light-gray/pearl-white studio gradient (#F2F2F2 upper left to #DEDFE1 lower right). Soft subtle neutral-gray contact shadow below the object. NO colored background, no blue, cyan, teal, colored edge lighting, rainbow sheen or color cast anywhere in the scene. The colorless glass should be defined by curvature, optical refraction and restrained WHITE studio highlights.
+Fill the background to every edge of the square. Do not bake rounded corners or a separate tile or frame; the platform will apply the icon mask. No text, watermark, labels, floor horizon or mockup. One final high-resolution square app icon.

@@ -1,0 +1,167 @@
+{
+  "model": "Qwen3-TTS-12Hz-0.6B-CustomVoice",
+  "speaker": "Serena",
+  "status": "experimental; measured warm throughput below real-time; retain segmented listening notice",
+  "platform": "macOS Apple Silicon only",
+  "runtime": "Apple Core ML / Swift",
+  "sourceCheckpoint": {
+    "model": "mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-4bit",
+    "revision": "08c72cad5e2fd0f41730c8bd1f28149585e46361",
+    "sha256": "4ab02a20be381700f6e73dbb5efdc424cadf9f1d0652cbffd662872ea41e296a",
+    "sourcePrecision": "MLX 4-bit weights reconstructed to FP16; original quantization loss is retained"
+  },
+  "license": "Apache-2.0",
+  "runtimeSource": {
+    "repository": "https://github.com/soniqo/speech-swift",
+    "revision": "cbcdfc6be5e723952d29ab6e32af5e22ad8e70fa"
+  },
+  "computeUnits": "cpuAndGPU decoders / cpuOnly speech decoder and embeddings",
+  "networkInference": false,
+  "files": {
+    "CodeDecoder.mlmodelc/analytics/coremldata.bin": {
+      "bytes": 243,
+      "sha256": "c7cc08715a8c2fe9d667e7140ddf2fce029d0bc27152547437eeef58023c01fc"
+    },
+    "CodeDecoder.mlmodelc/coremldata.bin": {
+      "bytes": 576,
+      "sha256": "90fe1b2188364c885ffc6e31d89c4ec811f4411d3b3cc3bf9708dd18db0b851a"
+    },
+    "CodeDecoder.mlmodelc/model.mil": {
+      "bytes": 733220,
+      "sha256": "cb3d8aebe5a73b856f861a12d6c6786033b5c5fd1f8972a6837bc4dedd9b503e"
+    },
+    "CodeDecoder.mlmodelc/weights/weight.bin": {
+      "bytes": 445255936,
+      "sha256": "877711a5acf2166997cf05246cd2a8ffddb5f2db6bace47d7b5c5423c997b52d"
+    },
+    "CodeEmbedder.mlmodelc/analytics/coremldata.bin": {
+      "bytes": 243,
+      "sha256": "47da51816ee7b267a705f2c3a9539699f827e3ff28d098d33fafff3cecc29ad0"
+    },
+    "CodeEmbedder.mlmodelc/coremldata.bin": {
+      "bytes": 381,
+      "sha256": "f504bfdbe656feb4a00cee6330cb6fe54b4a525545eb83626814854b0b5473cc"
+    },
+    "CodeEmbedder.mlmodelc/model.mil": {
+      "bytes": 2801,
+      "sha256": "dd1f22f93b808ae97ad26d666be1fb69efb6d7dc28c80a05ed9368d290d9f701"
+    },
+    "CodeEmbedder.mlmodelc/weights/weight.bin": {
+      "bytes": 6291584,
+      "sha256": "5bf4059e34abbb08bea47b47e1cc305a08c690c19e42526aa97c14e9dd66b4b4"
+    },
+    "LICENSE-model": {
+      "bytes": 11343,
+      "sha256": "a44a6081c73ad75f0255bb2bb5cab74ef1829565a895a24e53a4f11290ab7655"
+    },
+    "LICENSE-runtime": {
+      "bytes": 10763,
+      "sha256": "8b86cbde30daef6bfac0780dee1649be3b2de2abf4ecdefd5b7099df212c5a1d"
+    },
+    "MultiCodeDecoder.mlmodelc/analytics/coremldata.bin": {
+      "bytes": 243,
+      "sha256": "c9c37ec0c10fdf789ee8ed0b5d6ab77ca9871d1dd33008f026225d383ea175ce"
+    },
+    "MultiCodeDecoder.mlmodelc/coremldata.bin": {
+      "bytes": 636,
+      "sha256": "36e8173b6b2feee906090560d2eb2293a91c8c273aa0fb9994c219bea5fa4c44"
+    },
+    "MultiCodeDecoder.mlmodelc/model.mil": {
+      "bytes": 150134,
+      "sha256": "f246b303372000c054f6c6214bcb0e37ab09c705cee225d2ae044c25f15f904e"
+    },
+    "MultiCodeDecoder.mlmodelc/weights/weight.bin": {
+      "bytes": 110552192,
+      "sha256": "d7a8209eff7de5c983d25367abc5a56e01bd06a11eb2515ebcf2bf5a5ea4bbff"
+    },
+    "MultiCodeEmbedder.mlmodelc/analytics/coremldata.bin": {
+      "bytes": 243,
+      "sha256": "8e757ecbbd58453d5b722d52e9e04a978ddba931833fe1b430e353e70a51dad2"
+    },
+    "MultiCodeEmbedder.mlmodelc/coremldata.bin": {
+      "bytes": 381,
+      "sha256": "fed52b058742b42967831ff01792d8d76b5afe43ba5d5721f82fd5db0e50a0fa"
+    },
+    "MultiCodeEmbedder.mlmodelc/model.mil": {
+      "bytes": 2786,
+      "sha256": "ed4ab6903d4ea9a8546f5f55595466a66edf86de33677f7f3d25ded5c8b7ef0c"
+    },
+    "MultiCodeEmbedder.mlmodelc/weights/weight.bin": {
+      "bytes": 62914688,
+      "sha256": "f318d23d7db53b299b3aa472844a721d2b6245550fb57558b0d2c5ebbcd3fd82"
+    },
+    "SpeechDecoder.mlmodelc/analytics/coremldata.bin": {
+      "bytes": 243,
+      "sha256": "1c1f98a065ab4f861e4d6ed7c0cd9f148568a84705eb85851f22e0d886133354"
+    },
+    "SpeechDecoder.mlmodelc/coremldata.bin": {
+      "bytes": 379,
+      "sha256": "c44cf29eb1c4f9581b47dd2cff7ca66c7ef367aa1130c6e738bec229b3d58b25"
+    },
+    "SpeechDecoder.mlmodelc/model.mil": {
+      "bytes": 318208,
+      "sha256": "6ee24884f7a9498479c1d60f562d05947467f7a4adc5f09a9652247535017f56"
+    },
+    "SpeechDecoder.mlmodelc/weights/weight.bin": {
+      "bytes": 114502816,
+      "sha256": "16961271b479a3fe33d61c85999ac23d5f7cfec524d199929d4748b6fb7ebadc"
+    },
+    "TextProjector.mlmodelc/analytics/coremldata.bin": {
+      "bytes": 243,
+      "sha256": "4c3f968924da44cc61077f19810500e42c306d34df8918ea0f746e5d065d1eb0"
+    },
+    "TextProjector.mlmodelc/coremldata.bin": {
+      "bytes": 381,
+      "sha256": "c8bb024ed7f5fca375fd9dcbb022f18a026be6f03811eff462bd82767379faf3"
+    },
+    "TextProjector.mlmodelc/model.mil": {
+      "bytes": 4645,
+      "sha256": "46bbe0e1cadef83903b2a67fe8ae05eda4e2086b64e48ef440d0a2159d5d9e40"
+    },
+    "TextProjector.mlmodelc/weights/weight.bin": {
+      "bytes": 317464640,
+      "sha256": "a723060c9c95ed2b53cf07dd60154c3412fb970c19f9870615440de25fb53ecb"
+    },
+    "config.json": {
+      "bytes": 970,
+      "sha256": "145a381be07df9ce0e4b412c02758b27ad17497abe2b4af471ee18d8c21b6c7b"
+    },
+    "merges.txt": {
+      "bytes": 1671839,
+      "sha256": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3"
+    },
+    "speaker_embedding.npy": {
+      "bytes": 4224,
+      "sha256": "7dde546e137b3b39dbca362ad4f036dcfa3fb6505c4fe4f9e0726d8e89d785c3"
+    },
+    "tokenizer_config.json": {
+      "bytes": 7344,
+      "sha256": "dc3c31c3bdaedd5016382bb3cbe07323026775ad51f5a4fb564505992ae4a670"
+    },
+    "tts_bos_embed.npy": {
+      "bytes": 4224,
+      "sha256": "2c4f10137cdf3af87bffa6ad50ca83bd5ae7039a25e9419d7db10c47ae8327b4"
+    },
+    "tts_eos_embed.npy": {
+      "bytes": 4224,
+      "sha256": "98cdf5a743aebc844e24ac3834c99341e447c5c35d3c31b3781bcabeb64368a6"
+    },
+    "tts_pad_embed.npy": {
+      "bytes": 4224,
+      "sha256": "707129fbe9cfde30b021187a2b42cdaed4633f409f1569c0f4014856a6197839"
+    },
+    "vocab.json": {
+      "bytes": 2776833,
+      "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+    }
+  },
+  "componentComputeUnits": {
+    "CodeDecoder": "cpuAndGPU",
+    "MultiCodeDecoder": "cpuAndGPU",
+    "SpeechDecoder": "cpuOnly",
+    "TextProjector": "cpuOnly",
+    "CodeEmbedder": "cpuOnly",
+    "MultiCodeEmbedder": "cpuOnly"
+  },
+  "runtimeOptimization": "Drain temporary Core ML prediction providers after each residual codebook step; retain state and returned arrays"
+}
