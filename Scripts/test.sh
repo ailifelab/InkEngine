@@ -22,7 +22,8 @@ case "${1:-core}" in
     xcodebuild -project InkEngine.xcodeproj -scheme InkEngine -destination "platform=iOS Simulator,id=$target" -derivedDataPath "${DERIVED_DATA_PATH:-build/Mobile-$1}" -resultBundlePath "$result" CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- -collect-test-diagnostics never "${extra[@]}" test
     ;;
   mac)
-    xcodebuild -project InkEngine.xcodeproj -scheme InkEngine -destination 'platform=macOS,arch=arm64' -derivedDataPath build/Mac -resultBundlePath "TestResults/Mac-$(date +%Y%m%d-%H%M%S).xcresult" -collect-test-diagnostics never "${extra[@]}" test
+    trap 'python3 Scripts/mac_app_registry.py' EXIT
+    xcodebuild -project InkEngine.xcodeproj -scheme InkEngine -destination 'platform=macOS,arch=arm64' -derivedDataPath build.noindex/Mac -resultBundlePath "TestResults/Mac-$(date +%Y%m%d-%H%M%S).xcresult" -collect-test-diagnostics never "${extra[@]}" test
     ;;
   *) print -u2 'Usage: Scripts/test.sh core|iphone|ipad|mac'; exit 2 ;;
 esac

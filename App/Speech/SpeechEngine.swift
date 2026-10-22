@@ -17,20 +17,26 @@ import UIKit
     private var pronunciationVersion = ""
     private var systemFallback = false
     private var lastSynthesisFailure = ""
+    private static var supportedRenderers: Set<String> {
+        #if os(macOS) && arch(arm64)
+        ["system", "zipvoice", "zipvoice-male", "qwen"]
+        #else
+        ["system", "zipvoice", "zipvoice-male"]
+        #endif
+    }
     @Published var rendererMode = "system" {
         didSet {
+            if !Self.supportedRenderers.contains(rendererMode) { rendererMode = "system" }
             preferences.set(rendererMode, forKey: "speechRenderer")
             if rendererMode == "zipvoice" || rendererMode == "zipvoice-male" {
                 preferences.set(rendererMode == "zipvoice-male" ? "dylan" : "serena", forKey: "zipVoiceReference")
             }
             guard oldValue != rendererMode else { return }
-            stop()
+            stopForVoiceSelectionChange()
             if modelRatesReady { restoreModelRate() }
             // 先取消旧请求，再由actor串行释放闲置模型；保留当前音色，避免播放中反复加载。
             let selected = rendererMode
             Task {
-                if selected != "matcha" { await lightSynthesizer.unload() }
-                if selected != "piper" { await maleSynthesizer.unload() }
                 if !["zipvoice", "zipvoice-male"].contains(selected) { await zipSynthesizer.unload() }
                 #if os(macOS)
                 if selected != "qwen" { await qwenSynthesizer.unload() }
@@ -38,7 +44,14 @@ import UIKit
             }
         }
     }
-    @Published var systemVoiceID = "" { didSet { preferences.set(systemVoiceID, forKey: "systemMandarinVoice") } }
+    @Published var systemVoiceID = "" {
+        didSet {
+            preferences.set(systemVoiceID, forKey: "systemMandarinVoice")
+            guard oldValue != systemVoiceID, usesSystem else { return }
+            // 不打断正在使用本地模型的朗读；系统播放（含救援后端）才需要取消旧音色队列。
+            stopForVoiceSelectionChange()
+        }
+    }
     var selectedModel: String {
         get { rendererMode == "zipvoice-male" ? "zipvoice" : rendererMode }
         set {
@@ -54,6 +67,15 @@ import UIKit
             preferences.set(newValue, forKey: "zipVoiceReference")
             if selectedModel == "zipvoice" { rendererMode = newValue == "dylan" ? "zipvoice-male" : "zipvoice" }
         }
+    }
+    /// 用户显式换模型或音色时保留阅读游标，但不继承旧波形及系统救援状态。
+    /// 仅移除当前文稿的续播索引，保留正文和其他文稿缓存；下一次播放重新尝试所选音色。
+    private func stopForVoiceSelectionChange() {
+        stop()
+        systemFallback = false
+        recoveryMessage = ""
+        if let documentID { preferences.removeObject(forKey: "speechCheckpoint-\(documentID.uuidString)") }
+        recordVoiceSelectionEvidence("voice-selection-stopped")
     }
     private var usesSystem: Bool { rendererMode == "system" || systemFallback }
     private var currentVoiceID: String { usesSystem ? systemVoiceID : requestedVoice(for: rendererMode) }
@@ -83,6 +105,11 @@ import UIKit
     @Published var skipCode = true { didSet { preferences.set(skipCode, forKey: "skipCode") } }
     @Published private(set) var playing = false
     @Published private(set) var paused = false
+    @Published private(set) var scrubbing = false
+    private var scrubResumeState: (playing: Bool, paused: Bool)?
+    private var scrubGeneration: UUID?
+    private var scrubUpdates = 0
+    private var scrubStayedIdle = true
     @Published private(set) var preparing = false
     @Published private(set) var segmentIndex = 0
     @Published private(set) var spokenRange: NSRange?
@@ -93,8 +120,6 @@ import UIKit
     var transportGeneration: UUID { ledger.generation }
     var auditioning: Bool { previewText != nil }
     private let preferences: UserDefaults
-    private let lightSynthesizer = MatchaSynthesizer()
-    private let maleSynthesizer = VitsSynthesizer()
     private let zipSynthesizer = ZipVoiceSynthesizer()
     #if os(macOS)
     private let qwenSynthesizer = QwenSynthesizer()
@@ -109,9 +134,7 @@ import UIKit
             // PCM及保存的样本位置独立保留，继续时只按需重新加载模型。
             do { try await Task.sleep(for: .seconds(30)) } catch { return }
             guard let self, !Task.isCancelled, self.ledger.generation == generation, !self.playing || self.paused else { return }
-            await self.lightSynthesizer.unload()
             guard !Task.isCancelled, self.ledger.generation == generation, !self.playing || self.paused else { return }
-            await self.maleSynthesizer.unload()
             await self.zipSynthesizer.unload()
             #if os(macOS)
             await self.qwenSynthesizer.unload()
@@ -119,10 +142,8 @@ import UIKit
             self.idleModelReleases += 1
         }
     }
-    private let engine = AVAudioEngine()
-    private let player = AVAudioPlayerNode()
-    private let timePitch = AVAudioUnitTimePitch()
-    private let format = AVAudioFormat(standardFormatWithSampleRate: 24000, channels: 1)!
+    private let playback = SpeechAudioGraph()
+    private var format: AVAudioFormat { playback.format }
     private var parsed = ParsedText(segments: [], chapters: [])
     private var previewText: ParsedText?
     private var beforeAudition: SpeechCursor?
@@ -163,7 +184,7 @@ import UIKit
             activeSynthesisSpeed = buffer.speed
         }
         let desired = rate / activeSynthesisSpeed
-        if timePitch.rate != desired { timePitch.rate = desired }
+        if playback.snapshot.rate != desired { playback.setRate(desired) }
     }
     private var bufferedSeconds: Double {
         buffers.reduce(0) { total, buffer in
@@ -185,7 +206,7 @@ import UIKit
         let requestedRenderer: String?
         let requestedVoice: String?
     }
-    private var documentID: UUID?
+    private(set) var documentID: UUID?
     private var revision: UUID?
     private var initialFrameOffset: Int64 = 0
     private var restoredFrameOffset: Int64 = 0
@@ -200,8 +221,6 @@ import UIKit
     private var sessionVoice = ""
     private func requestedVoice(for renderer: String) -> String {
         switch renderer {
-        case "matcha": return "matcha-zh-standard"
-        case "piper": return "piper-zh-chaowen"
         case "zipvoice": return "zipvoice-distill-coreml-4"
         case "zipvoice-male": return "zipvoice-distill-coreml-4-dylan"
         case "qwen": return "qwen-06b-coreml-serena"
@@ -211,8 +230,6 @@ import UIKit
     private func modelVersion(for voice: String) -> String {
         let model: String
         switch voice {
-        case "matcha-zh-standard": model = "matcha-zh-en-6-noise1-vocos-16k-pcm3"
-        case "piper-zh-chaowen": model = "piper-zh-chaowen-fp32-22k-pcm1"
         case "zipvoice-distill-coreml-4": model = "zipvoice-coreml-fp16-cpu-1024-4-qwenref352-pcm3"
         case "zipvoice-distill-coreml-4-dylan": model = "zipvoice-coreml-fp16-cpu-1024-4-dylan-natural-ref352-pcm2"
         case "qwen-06b-coreml-serena": model = "qwen-customvoice-coreml-w8-gpu-cpusd-cd32-mcd32-512-256-serena-pcm2"
@@ -221,7 +238,7 @@ import UIKit
         return model + "-pronunciation-" + pronunciationVersion + "-" + SpeechInput.cacheVersion
     }
     private var timer: Timer?
-    private var title = "墨语引擎"
+    private var title = L10n.tr("墨语引擎")
     private var observers: [NSObjectProtocol] = []
     private let audioSessionQueue = DispatchQueue(label: "InkEngine.Speech.AudioSession")
     #if os(iOS)
@@ -231,12 +248,10 @@ import UIKit
     private var directory: URL? { Bundle.main.url(forResource: "Speech", withExtension: nil) }
     private var qwenDirectory: URL? { Bundle.main.url(forResource: "SpeechMac", withExtension: nil)?.appendingPathComponent("Qwen") }
     var voiceDescription: String {
-        if !usesSystem && rendererMode == "piper" { return "Piper 超文 · 轻量中文男声 · 本地离线" }
-        if !usesSystem && rendererMode == "matcha" { return "Matcha · 轻量中文女声 · 本地离线" }
-        if !usesSystem && rendererMode == "zipvoice-male" { return "ZipVoice Dylan · 中文男声 · 本地离线" }
-        if !usesSystem && rendererMode == "zipvoice" { return "ZipVoice Serena · 中文女声 · 本地离线" }
-        if !usesSystem && rendererMode == "qwen" { return "Qwen Serena · 自然中文女声 · 本地离线" }
-        return "系统普通话 · \(systemVoices.first(where: { $0.identifier == systemVoiceID })?.name ?? "普通话") · 本地离线"
+        if !usesSystem && rendererMode == "zipvoice-male" { return L10n.tr("ZipVoice Dylan · 中文男声 · 本地离线") }
+        if !usesSystem && rendererMode == "zipvoice" { return L10n.tr("ZipVoice Serena · 中文女声 · 本地离线") }
+        if !usesSystem && rendererMode == "qwen" { return L10n.tr("Qwen Serena · 自然中文女声 · 本地离线") }
+        return L10n.tr("系统普通话 · \(systemVoices.first(where: { $0.identifier == systemVoiceID })?.name ?? L10n.tr("普通话")) · 本地离线")
     }
     var zipVoiceReady: Bool { nativeModelsReady(at: directory?.appendingPathComponent("ZipVoice"), names: ["TextEncoder", "FmDecoder", "Vocos"]) }
     var zipVoiceMaleReady: Bool { zipVoiceReady && directory.map { FileManager.default.fileExists(atPath: $0.appendingPathComponent("ZipVoice/reference-dylan.json").path) } == true }
@@ -256,9 +271,7 @@ import UIKit
         if rendererMode == "zipvoice" { return zipVoiceReady }
         if rendererMode == "zipvoice-male" { return zipVoiceMaleReady }
         if rendererMode == "qwen" { return qwenReady }
-        guard let directory else { return false }
-        let file = rendererMode == "matcha" ? "Matcha/model-steps-6.onnx" : "Piper/model.onnx"
-        return FileManager.default.fileExists(atPath: directory.appendingPathComponent(file).path)
+        return false
     }
     private var currentSampleOffset: Int64 {
         guard let entry = ledger.current, let buffer = buffers.first(where: { $0.chunk.cursor == entry.chunk.cursor }) else { return 0 }
@@ -266,14 +279,37 @@ import UIKit
     }
     var preparationMessage: String {
         guard preparing, !paused else { return "" }
-        if rendererMode == "qwen", renderedFrames == 0 { return "正在准备 Qwen 音色，首次准备和合成可能需要约一分钟。" }
+        if rendererMode == "qwen", renderedFrames == 0 { return L10n.tr("正在准备 Qwen 音色，首次准备和合成可能需要约一分钟。") }
         if ["zipvoice", "zipvoice-male", "qwen"].contains(rendererMode), renderedFrames == 0 {
-            return "正在准备所选音色，首次使用可能需要约半分钟。"
+            return L10n.tr("正在准备所选音色，首次使用可能需要约半分钟。")
         }
-        return "正在准备下一段朗读。"
+        return L10n.tr("正在准备下一段朗读。")
     }
-    var playbackEvidence: String { "Speech|\(ledger.generation.uuidString)|\(renderedFrames)|\(cursor.segment)|\(cursor.offset)|\(paused ? "paused" : preparing ? "preparing" : playing ? "playing" : "stopped")|\(underruns)|\(restoredFrameOffset)|\(currentSampleOffset)|\(restoredCursor?.segment ?? -1)|\(restoredCursor?.offset ?? -1)|\(restoredPCMVerified)|\(resumeCacheStatus)|\(rate)|\(timePitch.rate)|\(usesSystem ? "system" : rendererMode)|\(systemFallback)|\(activeSynthesisSpeed)|\(timer != nil)|\(idleModelReleases)" }
+    #if DEBUG
+    // 仅验收用的真实合成请求采样；不改变缓存、队列或播放策略。
+    private var diagnosticSynthesisVoice = "none"
+    private var diagnosticSynthesisRenderer = "none"
+    private var diagnosticSynthesisRequests = 0
+    #endif
+    /// 仅隔离音色验收将真实播放状态写入标准输出，避免系统分屏启动测试运行器改变窗口。
+    private func recordVoiceSelectionEvidence(_ phase: String) {
+        #if DEBUG
+        guard ProcessInfo.processInfo.arguments.contains("--ui-testing"),
+              ProcessInfo.processInfo.arguments.contains("--voice-selection-ui-testing") else { return }
+        let line = "VOICE_SELECTION_EVENT phase=\(phase) \(playbackEvidence)\n"
+        if let data = line.data(using: .utf8) { FileHandle.standardOutput.write(data) }
+        #endif
+    }
+    var playbackEvidence: String {
+        let value = "Speech|\(ledger.generation.uuidString)|\(renderedFrames)|\(cursor.segment)|\(cursor.offset)|\(scrubbing ? "scrubbing" : paused ? "paused" : preparing ? "preparing" : playing ? "playing" : "stopped")|\(underruns)|\(restoredFrameOffset)|\(currentSampleOffset)|\(restoredCursor?.segment ?? -1)|\(restoredCursor?.offset ?? -1)|\(restoredPCMVerified)|\(resumeCacheStatus)|\(rate)|\(playback.snapshot.rate)|\(usesSystem ? "system" : rendererMode)|\(systemFallback)|\(activeSynthesisSpeed)|\(timer != nil)|\(idleModelReleases)|scrubUpdates=\(scrubUpdates);scrubIdle=\(scrubStayedIdle)"
+        #if DEBUG
+        return value + "|" + playback.diagnostics + "|synthesisVoice=\(diagnosticSynthesisVoice);synthesisRenderer=\(diagnosticSynthesisRenderer);synthesisRequests=\(diagnosticSynthesisRequests);scheduledVoice=\(buffers.first?.voice ?? "none");queuedVoices=\(buffers.map(\.voice).joined(separator: ","));selectedVoice=\(currentVoiceID);selectedRenderer=\(rendererMode);queuedCount=\(queuedCount)"
+        #else
+        return value
+        #endif
+    }
 
+    /// 初始化共享朗读引擎与恢复缓存；隔离 UI 测试使用独立缓存目录。
     init(preferences: UserDefaults = .standard) {
         self.preferences = preferences
         let testing = ProcessInfo.processInfo.arguments.contains("--ui-testing")
@@ -307,17 +343,22 @@ import UIKit
         }
         preferences.removeObject(forKey: "kokoroSpeed")
         refreshVoices()
+        #if DEBUG
+        if testing && ProcessInfo.processInfo.arguments.contains("--retired-renderer-ui-testing") {
+            preferences.set("matcha", forKey: "speechRenderer")
+        }
+        #endif
         let savedRenderer = preferences.string(forKey: "speechRenderer")
         // 退役音色只迁移选择，保留文稿和阅读位置。
-        var allowedRenderers = ["system", "matcha", "zipvoice", "zipvoice-male"]
+        var allowedRenderers = ["system", "zipvoice", "zipvoice-male"]
         #if os(macOS) && arch(arm64)
         allowedRenderers.append("qwen")
         #endif
         if savedRenderer == "piper" { rendererMode = "zipvoice-male" }
-        else { rendererMode = allowedRenderers.contains(savedRenderer ?? "") ? savedRenderer! : "matcha" }
+        else { rendererMode = allowedRenderers.contains(savedRenderer ?? "") ? savedRenderer! : "system" }
         if ProcessInfo.processInfo.arguments.contains("--system-speech-ui-testing") { rendererMode = "system" }
         #if DEBUG
-        if testing && ProcessInfo.processInfo.arguments.contains("--light-speech-ui-testing") { rendererMode = "matcha" }
+        if testing && ProcessInfo.processInfo.arguments.contains("--light-speech-ui-testing") { rendererMode = "zipvoice" }
         if testing && ProcessInfo.processInfo.arguments.contains("--male-speech-ui-testing") { rendererMode = "zipvoice-male" }
         if testing && ProcessInfo.processInfo.arguments.contains("--zipvoice-ui-testing") { rendererMode = ProcessInfo.processInfo.arguments.contains("--zipvoice-male-ui-testing") ? "zipvoice-male" : "zipvoice" }
         if testing && ProcessInfo.processInfo.arguments.contains("--qwen-ui-testing"), qwenReady { rendererMode = "qwen" }
@@ -326,11 +367,8 @@ import UIKit
         restoreModelRate()
         modelRatesReady = true
         if preferences.object(forKey: "skipCode") != nil { skipCode = preferences.bool(forKey: "skipCode") }
-        engine.attach(player); engine.attach(timePitch)
-        engine.connect(player, to: timePitch, format: format)
-        engine.connect(timePitch, to: engine.mainMixerNode, format: format)
-        timePitch.rate = rate; timePitch.pitch = 0
-        observers.append(NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
+        playback.setRate(rate)
+        observers.append(NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: playback.engine, queue: .main) { [weak self] _ in
             Task { @MainActor in
                 guard let self, self.playing, !self.buffers.isEmpty else { return }
                 // 音频路由或采样率变化时保留已合成 PCM，并自动重建播放图。
@@ -374,6 +412,7 @@ import UIKit
         })
         #endif
     }
+    /// 刷新系统可用音色，并保留仍有效的用户选择。
     func refreshVoices() {
         let all = AVSpeechSynthesisVoice.speechVoices().filter { ["zh-CN", "zh-TW"].contains($0.language) }.sorted {
             if $0.quality.rawValue != $1.quality.rawValue { return $0.quality.rawValue > $1.quality.rawValue }
@@ -388,18 +427,26 @@ import UIKit
         systemVoices = Array((female + male + other).prefix(10))
         let options = systemVoices.map { SpeechVoiceOption(id: $0.identifier, language: $0.language, quality: $0.quality.rawValue, name: $0.name) }
         systemVoiceID = MandarinVoicePolicy.choose(from: options, savedID: systemVoiceID) ?? ""
-        if !offlineReady { error = "离线中文音色文件缺失，请重新安装完整应用。" }
+        if !offlineReady { error = L10n.tr("离线中文音色文件缺失，请重新安装完整应用。") }
     }
+    /// 停止旧播放并绑定新的正文、文稿 ID 与版本，隔离不同文稿的音频缓存。
     func load(_ text: ParsedText, title: String, documentID: UUID, revision: UUID) {
         stop(); parsed = text; self.title = title; self.documentID = documentID; self.revision = revision
         cursor = SpeechCursor(segment: 0); segmentIndex = 0
     }
+    /// 显式开始播放；位于文末时回到最后可读正文，自动队列结束仍保持正常结束。
     func play(from segment: Int) {
         let readingCursor = previewText == nil ? cursor : beforeAudition ?? cursor
-        let target = readingCursor.segment == segment ? readingCursor : SpeechCursor(segment: max(0, segment))
+        let proposed = readingCursor.segment == segment ? readingCursor : SpeechCursor(segment: max(0, segment))
+        guard let target = parsed.explicitPlaybackCursor(from: proposed, skipCode: skipCode, renderer: rendererMode) else {
+            error = L10n.tr("文稿没有可朗读的正文。")
+            return
+        }
         begin(at: target)
     }
+    /// 从正文起点重新合成播放，明确忽略旧样本续播缓存。
     func playFromBeginning() { begin(at: SpeechCursor(segment: 0), useCheckpoint: false) }
+    /// 试听独立示例文本，保留原正文阅读游标供试听结束后恢复。
     func audition(_ text: String = "窗外的风带来了雨的气息。她放下手中的书，轻声说：明天，我们再出发。听见文字，也听见句子之间的停顿。") {
         stop()
         let readingCursor = cursor
@@ -407,6 +454,7 @@ import UIKit
         begin(at: SpeechCursor(segment: 0), preview: true)
         beforeAudition = readingCursor
     }
+    /// 更新纠音规则并使旧波形失效；保留阅读位置，不将新读法套入旧样本偏移。
     func setPronunciationRules(_ rules: [PronunciationRule]) {
         // 纠音变化后旧 PCM 的读法已经过期。保留正文位置，下一次从当前句重读；
         // 不把新读法硬套到旧波形的样本位置上。
@@ -422,7 +470,7 @@ import UIKit
         systemFallback = false; systemRetryCount = 0; recoveryMessage = ""; lastSynthesisFailure = ""
         sessionRenderer = rendererMode; sessionVoice = requestedVoice(for: rendererMode)
         previewText = sample
-        guard let directory else { error = "离线中文音色文件缺失，请重新安装完整应用。"; return }
+        guard let directory else { error = L10n.tr("离线中文音色文件缺失，请重新安装完整应用。"); return }
         guard let chunk = readingText.speechChunk(from: target, skipCode: skipCode, renderer: rendererMode) else { return }
         let cached = useCheckpoint && !preview ? cachedCheckpoint(for: chunk) : nil
         if let cached {
@@ -439,7 +487,8 @@ import UIKit
             do {
                 try await self.activateAudio()
                 guard self.playing, self.ledger.generation == generation else { return }
-                try self.engine.start()
+                try await self.playback.start()
+                guard self.playing, self.ledger.generation == generation else { return }
                 self.startTimer()
                 if let cached {
                     self.planned = chunk.next
@@ -456,7 +505,7 @@ import UIKit
     private func protectPreparation() {
         #if os(iOS)
         guard preparationTask == .invalid else { return }
-        preparationTask = UIApplication.shared.beginBackgroundTask(withName: "准备下一段朗读") { [weak self] in
+        preparationTask = UIApplication.shared.beginBackgroundTask(withName: L10n.tr("准备下一段朗读")) { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
                 if self.playing && !self.paused && self.inFlight { self.recoverSynthesis() }
@@ -491,7 +540,7 @@ import UIKit
         // 按音频时长预存，最多六句、约 24 秒；短对话能连续播放，
         // 缓冲足够时暂停推理，避免整本小说持续占用处理器。
         let secondsAhead = bufferedSeconds
-        let lookahead: Double = rendererMode == "matcha" ? 12 : 24
+        let lookahead: Double = 24
         guard queuedCount < 6, secondsAhead < lookahead else { return }
         var candidate = readingText.speechChunk(from: planned, skipCode: skipCode, renderer: rendererMode)
         var spokenText = ""
@@ -508,8 +557,15 @@ import UIKit
         let generation = ledger.generation, cancellation = cancellation
         // 每个请求固定生成倍率；调速不取消已合成的声音，新请求使用新倍率。
         // 原生模型使用适中的语速范围，超出部分由播放器补足。
-        let selectedVoice = currentVoiceID, useSystem = usesSystem, useLight = !usesSystem && rendererMode == "matcha", useMale = !usesSystem && rendererMode == "piper"
+        let selectedVoice = currentVoiceID, useSystem = usesSystem
         let selectedRenderer = useSystem ? "system" : rendererMode
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
+            diagnosticSynthesisVoice = selectedVoice
+            diagnosticSynthesisRenderer = selectedRenderer
+            diagnosticSynthesisRequests += 1
+        }
+        #endif
         let speed = SpeechRatePolicy.nativeRate(renderer: useSystem ? "system" : rendererMode, selected: rate)
         let synthesisText = spokenText
         synthesisWatchdog?.cancel()
@@ -520,7 +576,7 @@ import UIKit
             guard !Task.isCancelled, let self, self.synthesisRequest == request, self.playing, self.inFlight else { return }
             self.recoverSynthesis()
         }
-        synthesisTask = Task { [weak self, lightSynthesizer, maleSynthesizer, zipSynthesizer] in
+        synthesisTask = Task { [weak self, zipSynthesizer] in
             do {
                 let start = Date()
                 #if DEBUG
@@ -532,8 +588,6 @@ import UIKit
                 let audio: SpeechAudio
                 switch selectedRenderer {
                 case "system": guard let self else { return }; audio = try await self.systemRenderer.generate(text: synthesisText, voiceID: selectedVoice)
-                case "matcha": audio = try await lightSynthesizer.generate(text: synthesisText, directory: directory.appendingPathComponent("Matcha"), speed: speed, cancellation: cancellation)
-                case "piper": audio = try await maleSynthesizer.generate(text: synthesisText, directory: directory.appendingPathComponent("Piper"), speed: speed, cancellation: cancellation)
                 case "zipvoice", "zipvoice-male": audio = try await zipSynthesizer.generate(text: synthesisText, directory: directory.appendingPathComponent("ZipVoice"), referenceFile: selectedRenderer == "zipvoice-male" ? "reference-dylan.json" : "reference.json", cancellation: cancellation)
                 #if os(macOS)
                 case "qwen": guard let self, let modelDirectory = self.qwenDirectory else { throw SpeechFailure.initialization }; audio = try await self.qwenSynthesizer.generate(text: synthesisText, directory: modelDirectory, cancellation: cancellation)
@@ -541,7 +595,7 @@ import UIKit
                 default: throw SpeechFailure.initialization
                 }
                 #if DEBUG
-                print("INK_SYNTH mode=\(useSystem ? "system" : useLight ? "matcha" : useMale ? "piper" : "unknown") speed=\(speed) chars=\(chunk.text.count) seconds=\(Date().timeIntervalSince(start)) audio=\(audio.duration)")
+                print("INK_SYNTH mode=\(selectedRenderer) speed=\(speed) chars=\(chunk.text.count) seconds=\(Date().timeIntervalSince(start)) audio=\(audio.duration)")
                 #endif
                 guard let self, self.playing, self.ledger.generation == generation, self.synthesisRequest == request, !cancellation.isCancelled else { return }
                 self.synthesisWatchdog?.cancel(); self.systemRetryCount = 0
@@ -566,22 +620,24 @@ import UIKit
         synthesisTask?.cancel(); synthesisTask = nil; systemRenderer.stop(); inFlight = false
         if !usesSystem, !systemVoiceID.isEmpty {
             systemFallback = true
-            recoveryMessage = "所选音色准备失败或超时，已用系统普通话从未读处继续。重新开始朗读时会重试所选音色。"
+            recoveryMessage = L10n.tr("所选音色准备失败或超时，已用系统普通话从未读处继续。重新开始朗读时会重试所选音色。")
         } else if systemRetryCount < 1 {
             systemRetryCount += 1
-            recoveryMessage = "正在恢复朗读，阅读位置保持不变。"
+            recoveryMessage = L10n.tr("正在恢复朗读，阅读位置保持不变。")
         } else {
             if queuedCount == 0 { cursor = planned; segmentIndex = planned.segment }
-            fail(NSError(domain: "InkEngine.Speech", code: 2, userInfo: [NSLocalizedDescriptionKey: "朗读暂时无法恢复。锁屏播放按钮可从未读处重试，或在设置中更换音色。"])); return
+            fail(NSError(domain: "InkEngine.Speech", code: 2, userInfo: [NSLocalizedDescriptionKey: L10n.tr("朗读暂时无法恢复。锁屏播放按钮可从未读处重试，或在设置中更换音色。")])); return
         }
         protectPreparation()
         if let directory { fillQueue(directory: directory) }
         startBufferedPlayback(); nowPlaying()
     }
+    /// 统计指定文稿的续播 PCM 缓存大小；nil 表示全部。
     func audioCacheBytes(documentIDs: Set<UUID>? = nil) -> Int {
         let files = (try? FileManager.default.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: [.fileSizeKey])) ?? []
         return files.filter { file in documentIDs == nil || documentIDs!.contains { file.lastPathComponent.hasPrefix($0.uuidString + "-") } }.reduce(0) { $0 + ((try? $1.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }
     }
+    /// 清除所选文稿的续播波形及检查点，不删除正文和阅读位置。
     func clearAudioCache(documentIDs: Set<UUID>? = nil) throws {
         if documentIDs == nil || documentID.map({ documentIDs!.contains($0) }) == true { stop(); cachedBuffer = nil; cachedAudioDigest = "" }
         for file in try FileManager.default.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil) {
@@ -613,7 +669,7 @@ import UIKit
         let end = ledger.scheduledFrames
         buffers.append(BufferedAudio(chunk: chunk, buffer: buffer, start: start, end: end, skippedFrames: skippedFrames, voice: voice, speed: speed, original: original ?? buffer))
         queuedCount += 1
-        player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+        playback.schedule(buffer) { [weak self] in
             Task { @MainActor in
                 guard let self, self.playing, self.ledger.generation == generation else { return }
                 self.completedFrames = max(self.completedFrames, end)
@@ -623,7 +679,7 @@ import UIKit
                 if self.queuedCount == 0 {
                     // 空队列也会推进音频时钟；断粮时重置节点并保留账本基准，
                     // 避免后续合成补入时把静音时长误算成已经读过的正文。
-                    self.player.stop(); self.clockBase = end
+                    self.playback.stop(pauseEngine: false); self.clockBase = end
                     self.protectPreparation()
                     if self.inFlight && !self.paused { self.underruns += 1; self.preparing = true }
                 }
@@ -632,17 +688,23 @@ import UIKit
             }
         }
         startBufferedPlayback()
+        recordVoiceSelectionEvidence("pcm-scheduled")
     }
-    private func startBufferedPlayback() {
+    private func startBufferedPlayback(force: Bool = false) {
         guard !paused, queuedCount > 0 else { return }
-        guard !engine.isRunning || !player.isPlaying else { return }
+        guard force || !playback.snapshot.engineRunning || !playback.snapshot.playerPlaying else { return }
         // 开始前准备两个音频块，避免短标题播完后等待首个长段落而断粮。
         let secondsAhead = bufferedSeconds
         guard secondsAhead >= 5 || queuedCount >= 2 || readingText.speechChunk(from: planned, skipCode: skipCode, renderer: rendererMode) == nil else { return }
-        do { if !engine.isRunning { try engine.start() } }
-        catch { fail(error); return }
         updatePlaybackRate()
-        preparing = false; player.play(); releasePreparation(); updatePosition()
+        let generation = ledger.generation
+        playback.play(rate: rate / activeSynthesisSpeed) { [weak self] error in
+            Task { @MainActor in
+                guard let self, self.playing, !self.paused, self.ledger.generation == generation else { return }
+                if let error { self.fail(error); return }
+                self.preparing = false; self.releasePreparation(); self.updatePosition()
+            }
+        }
     }
     private func startTimer() {
         timer?.invalidate()
@@ -656,8 +718,8 @@ import UIKit
         guard playing, !paused else { return }
         // A hardware configuration change can stop the engine before any PCM
         // is queued. Restart it when buffered audio arrives, retaining the ledger.
-        if queuedCount > 0 && !engine.isRunning { startBufferedPlayback() }
-        let frame = player.lastRenderTime.flatMap { player.playerTime(forNodeTime: $0)?.sampleTime }.map { $0 + clockBase } ?? completedFrames
+        if queuedCount > 0 && !playback.snapshot.engineRunning { startBufferedPlayback() }
+        let frame = playback.snapshot.sampleTime.map { $0 + clockBase } ?? completedFrames
         ledger.render(to: max(frame, completedFrames), generation: ledger.generation)
         renderedFrames = ledger.renderedFrames
         updatePlaybackRate()
@@ -670,19 +732,22 @@ import UIKit
         if Date().timeIntervalSince(lastCheckpointTime) >= 1 { saveCheckpoint() }
         if let directory { fillQueue(directory: directory) }
     }
+    /// 暂停播放器并保存精确样本检查点；停止计时与闲置模型占用。
     func pause() {
         guard playing, !paused else { return }
-        updatePosition(); player.pause(); ledger.pause(); paused = true
+        updatePosition(); playback.pause(); ledger.pause(); paused = true
         timer?.invalidate(); timer = nil
         saveCheckpoint(); nowPlaying()
         releaseModelsWhenIdle()
+        recordVoiceSelectionEvidence("paused")
     }
+    /// 从已有 PCM 与样本位置继续播放，必要时重建音频引擎而不跳章。
     func resume() {
         modelReleaseTask?.cancel(); modelReleaseTask = nil
         guard playing else { begin(at: cursor); return }
         if !paused {
             if inFlight && queuedCount == 0 { recoverSynthesis() }
-            else if queuedCount > 0 && !player.isPlaying { paused = true; ledger.pause() }
+            else if queuedCount > 0 && !playback.snapshot.playerPlaying { paused = true; ledger.pause() }
             else { return }
         }
         if needsRebuild { rebuildBufferedPlayback() }
@@ -692,15 +757,47 @@ import UIKit
             do {
                 try await self.activateAudio()
                 guard self.playing, self.ledger.generation == generation else { return }
-                if !self.engine.isRunning { try self.engine.start() }
+                if !self.playback.snapshot.engineRunning { try await self.playback.start() }
+                guard self.playing, self.ledger.generation == generation else { return }
                 self.paused = false; self.ledger.resume()
                 self.startTimer()
-                self.startBufferedPlayback()
+                self.startBufferedPlayback(force: true)
                 if let directory = self.directory { self.fillQueue(directory: directory) }
                 self.updatePosition(); self.finishIfDrained(); self.nowPlaying()
             } catch { if self.ledger.generation == generation { self.fail(error) } }
         }
     }
+    /// 按住快进或快退时只暂停一次传输；手势中的位置更新绝不触发语音合成。
+    /// 长按快进、快退开始时停止播放与合成，整次拖动只建立一个传输代次。
+    func beginScrubbing() {
+        guard !scrubbing, !auditioning, !parsed.segments.isEmpty else { return }
+        let state = (playing: playing, paused: paused)
+        stop()
+        scrubGeneration = ledger.generation; scrubUpdates = 0; scrubStayedIdle = true
+        scrubResumeState = state
+        scrubbing = true
+    }
+    /// 仅更新阅读游标；手势按住期间不得合成语音或向播放器排队。
+    func updateScrubbing(toSourceOffset offset: Int) {
+        guard scrubbing else { return }
+        scrubUpdates += 1
+        scrubStayedIdle = scrubStayedIdle && ledger.generation == scrubGeneration && !playing && !preparing && renderedFrames == 0 && synthesisTask == nil && !inFlight && timer == nil
+        let target = parsed.speechCursor(at: offset)
+        guard parsed.segments.indices.contains(target.segment) else { return }
+        cursor = target; segmentIndex = target.segment; spokenRange = nil
+        let segment = parsed.segments[target.segment]
+        let source = segment.sourceOffsets.indices.contains(target.offset) ? segment.sourceOffsets[target.offset] : NSMaxRange(segment.sourceRange)
+        onPosition?(source)
+    }
+    /// 手势结束后按原播放、暂停状态恢复；resume 为 false 时保持停止。
+    func endScrubbing(resume: Bool = true) {
+        guard scrubbing else { return }
+        let state = scrubResumeState, target = cursor
+        scrubbing = false; scrubResumeState = nil
+        guard resume, let state, state.playing else { return }
+        begin(at: target, initiallyPaused: state.paused, useCheckpoint: false)
+    }
+    /// 保存续播检查点后取消合成与播放，保留正文阅读位置。
     func stop() {
         let readingCursor = previewText == nil ? nil : beforeAudition
         updatePosition(); saveCheckpoint(); invalidate()
@@ -716,17 +813,18 @@ import UIKit
         systemRenderer.stop(); cancellation.cancel(); synthesisTask?.cancel(); synthesisTask = nil
         synthesisWatchdog?.cancel(); synthesisWatchdog = nil; synthesisRequest = UUID()
         ledger.reset(); cancellation = SynthesisCancellation()
-        player.stop(); engine.pause(); timer?.invalidate(); timer = nil
+        playback.stop(pauseEngine: true); timer?.invalidate(); timer = nil
         queuedCount = 0; completedFrames = 0; clockBase = 0; underruns = 0; inFlight = false; buffers = []; needsRebuild = false
         activeSynthesisSpeed = 1; updatePlaybackRate()
         initialFrameOffset = 0; restoredFrameOffset = 0; restoredCursor = nil; restoredPCMVerified = false; cachedBuffer = nil; resumeCacheStatus = "none"
-        playing = false; paused = false; preparing = false; spokenRange = nil; renderedFrames = 0; previewText = nil; beforeAudition = nil
+        playing = false; paused = false; preparing = false; scrubbing = false; scrubResumeState = nil
+        spokenRange = nil; renderedFrames = 0; previewText = nil; beforeAudition = nil
     }
     private func rebuildBufferedPlayback() {
         let remaining = buffers.filter { $0.end > ledger.renderedFrames }
         let frame = ledger.renderedFrames
         systemRenderer.stop(); cancellation.cancel(); synthesisTask?.cancel(); synthesisTask = nil
-        player.stop(); ledger.reset(); ledger.pause(); cancellation = SynthesisCancellation()
+        playback.stop(pauseEngine: false); ledger.reset(); ledger.pause(); cancellation = SynthesisCancellation()
         buffers = []; queuedCount = 0; completedFrames = 0; clockBase = 0; renderedFrames = 0; inFlight = false; needsRebuild = false
         if let last = remaining.last { planned = last.chunk.next }
         for entry in remaining {
@@ -741,6 +839,8 @@ import UIKit
         }
     }
     private func digest(_ text: String) -> String { SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined() }
+    /// 保存当前原始 Float32 波形、文本版本、音色及精确样本偏移。
+    /// 离线模型可能含随机激励，续播必须复用原 PCM，不能重合成后硬套旧样本位置。
     private func saveCheckpoint() {
         guard playing, previewText == nil, let documentID, let revision,
               let entry = ledger.current, let buffer = buffers.first(where: { $0.chunk.cursor == entry.chunk.cursor }) else { return }
@@ -765,7 +865,7 @@ import UIKit
                     try? FileManager.default.removeItem(at: old)
                 }
             } catch {
-                self.error = "续读音频未能保存：\(error.localizedDescription)"
+                self.error = L10n.tr("续读音频未能保存：\(error.localizedDescription)")
                 return
             }
         }
@@ -775,6 +875,8 @@ import UIKit
         if let data = try? JSONEncoder().encode(checkpoint) { preferences.set(data, forKey: "speechCheckpoint-\(documentID.uuidString)") }
         lastCheckpointTime = Date()
     }
+    /// 只有文稿版本、文本块、音色、模型和音频摘要全部匹配才恢复样本。
+    /// 用户更换音色或缓存损坏时拒绝套用旧波形，由当前文本重新合成。
     private func cachedCheckpoint(for chunk: NeuralSpeechChunk) -> (buffer: AVAudioPCMBuffer, frame: Int64, speed: Float)? {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-testing"), let documentID,
@@ -810,7 +912,7 @@ import UIKit
             // 元信息和波形摘要均验证后才切后端，损坏缓存不会改变下一次朗读的选择。
             if restoresFallback {
                 systemFallback = true
-                recoveryMessage = "已从系统普通话救援音频的原位置继续。重新开始朗读时会重试所选音色。"
+                recoveryMessage = L10n.tr("已从系统普通话救援音频的原位置继续。重新开始朗读时会重试所选音色。")
             }
             resumeCacheStatus = "verified"
             return (buffer, max(0, checkpoint.frame), checkpoint.speed)
@@ -829,6 +931,7 @@ import UIKit
     }
     private func fail(_ failure: Error) { stop(); error = failure.localizedDescription }
     #if DEBUG && os(macOS)
+    /// 仅调试探针：验证原生播放与 PCM 续播缓存；输出诊断结果，不注册用户操作入口。
     func runNativeMacProbe() async {
         guard ProcessInfo.processInfo.arguments.contains("--ui-testing"),
               ProcessInfo.processInfo.arguments.contains("--native-mac-probe") else { return }
@@ -850,8 +953,8 @@ import UIKit
             let expectedVoice = rendererMode
             let initialRate = rate
             guard initialRate == (expectedVoice == "qwen" ? 1.25 : 1) else { throw SpeechFailure.generation }
-            rendererMode = "matcha"; rate = 1.1
-            rendererMode = "zipvoice"; rate = 1.15
+            rendererMode = "system"; rate = 1.1
+            rendererMode = "system"; rate = 1.15
             rendererMode = "zipvoice-male"
             guard rate == 1.15 else { throw SpeechFailure.generation }
             #if arch(arm64)
@@ -860,7 +963,7 @@ import UIKit
                 guard rate == 1.25 else { throw SpeechFailure.generation }
             }
             #endif
-            rendererMode = "matcha"
+            rendererMode = "system"
             guard rate == 1.1 else { throw SpeechFailure.generation }
             rendererMode = expectedVoice
             record("model-rates-independent")
@@ -892,11 +995,12 @@ import UIKit
     }
     #endif
     #if DEBUG && os(iOS)
-    /// Save the actual device-generated PCM for local intelligibility comparison.
+    /// 保存设备实际生成的 PCM，供本地语音清晰度对比使用。
+    /// 仅调试探针：离线生成音色质量样本并记录结果，不改变正式文稿。
     func runVoiceQualityProbe() async {
         guard ProcessInfo.processInfo.arguments.contains("--ui-testing"),
               ProcessInfo.processInfo.arguments.contains("--speech-quality-probe"),
-              let directory, ["matcha", "piper"].contains(rendererMode) else { return }
+              let directory, ["zipvoice", "zipvoice-male"].contains(rendererMode) else { return }
         let backend = rendererMode
         let cases = [
             "夜风穿过窗棂，书页轻轻翻动。他在门前站了一会儿，终于敲响了那扇沉重的木门。她低声问：“你怎么现在才来？”他摇了摇头，没有回答。",
@@ -910,9 +1014,7 @@ import UIKit
         for (index, text) in cases.enumerated() {
             let prepared = SpeechInput.preparing(pronunciation.applying(to: text)), start = Date()
             do {
-                let audio = backend == "matcha"
-                    ? try await lightSynthesizer.generate(text: prepared, directory: directory.appendingPathComponent("Matcha"), cancellation: SynthesisCancellation())
-                    : try await maleSynthesizer.generate(text: prepared, directory: directory.appendingPathComponent("Piper"), cancellation: SynthesisCancellation())
+                let audio = try await zipSynthesizer.generate(text: prepared, directory: directory.appendingPathComponent("ZipVoice"), referenceFile: backend == "zipvoice-male" ? "reference-dylan.json" : "reference.json", cancellation: SynthesisCancellation())
                 let elapsed = Date().timeIntervalSince(start)
                 let format = AVAudioFormat(standardFormatWithSampleRate: Double(audio.sampleRate), channels: 1)!
                 let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(audio.samples.count))!
@@ -929,13 +1031,14 @@ import UIKit
         }
     }
     /// 持续试听，不运行前置计时，也不在恢复断言结束后自动停播。
+    /// 仅调试探针：核验原生听书输出与播放状态，正常启动不执行。
     func runNativeListeningProbe() async {
         guard ProcessInfo.processInfo.arguments.contains("--ui-testing"),
               ProcessInfo.processInfo.arguments.contains("--native-listening-test") else { return }
         let url = cacheDirectory.deletingLastPathComponent().appendingPathComponent("Speech-native-listening-probe.json")
         var rows: [[String: Any]] = []
         rate = 1
-        if ProcessInfo.processInfo.arguments.contains("--light-speech-ui-testing") { rendererMode = "matcha" }
+        if ProcessInfo.processInfo.arguments.contains("--light-speech-ui-testing") { rendererMode = "zipvoice" }
         else { rendererMode = ProcessInfo.processInfo.arguments.contains("--zipvoice-male-ui-testing") || ProcessInfo.processInfo.arguments.contains("--male-speech-ui-testing") ? "zipvoice-male" : "zipvoice" }
         playFromBeginning()
         for _ in 0..<120 {
@@ -946,7 +1049,7 @@ import UIKit
                          "outputVolume": AVAudioSession.sharedInstance().outputVolume,
                          "route": AVAudioSession.sharedInstance().currentRoute.outputs.map { $0.portType.rawValue },
                          "bufferedSeconds": bufferedSeconds, "footprintMiB": Self.probeFootprint(),
-                         "engineRunning": engine.isRunning, "playerPlaying": player.isPlaying,
+                         "engineRunning": playback.snapshot.engineRunning, "playerPlaying": playback.snapshot.playerPlaying,
                          "queuedCount": queuedCount, "completedFrames": completedFrames, "clockBase": clockBase])
             if let data = try? JSONSerialization.data(withJSONObject: rows, options: [.prettyPrinted, .sortedKeys]) { try? data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]) }
             if !playing { return }
@@ -954,6 +1057,7 @@ import UIKit
         }
     }
     /// 真机计时使用实际合成器，隔离用户资料库和音频缓存。
+    /// 仅调试探针：记录模型准备与合成开销，避免将首次准备耗时混入稳定播放指标。
     func runPerformanceProbe() async {
         let nativeProbe = ProcessInfo.processInfo.arguments.contains("--zipvoice-ui-testing")
         let rateProbe = ProcessInfo.processInfo.arguments.contains("--speech-rate-performance-probe")
@@ -962,14 +1066,14 @@ import UIKit
               let directory = Bundle.main.url(forResource: "Speech", withExtension: nil) else { return }
         let text = "夜风穿过窗棂，书页轻轻翻动。他在门前站了一会儿，终于敲响了那扇沉重的木门。"
         let url = cacheDirectory.deletingLastPathComponent().appendingPathComponent(rateProbe ? "Speech-native-rate-probe.json" : "Speech-performance-probe.json")
-        let matcha = MatchaSynthesizer(), piper = VitsSynthesizer(), system = SystemSpeechRenderer(), zip = ZipVoiceSynthesizer()
+        let system = SystemSpeechRenderer(), zip = ZipVoiceSynthesizer()
         var rows: [[String: Any]] = []
         func write() {
             let report: [String: Any] = ["device": UIDevice.current.model, "system": UIDevice.current.systemVersion, "date": Date().timeIntervalSince1970, "voice": ProcessInfo.processInfo.arguments.contains("--zipvoice-male-ui-testing") ? "dylan" : "serena", "modelVersion": ProcessInfo.processInfo.arguments.contains("--zipvoice-male-ui-testing") ? "zipvoice-coreml-fp16-cpu-1024-4-dylan-natural-ref352-pcm2" : "zipvoice-coreml-fp16-cpu-1024-4-qwenref352-pcm3", "computeUnits": ProcessInfo.processInfo.arguments.contains("--zipvoice-gpu-probe") ? "cpuAndGPU" : "cpuOnly", "cpuPercentConvention": "100 percent equals one CPU core; whole process during synthesis", "text": text, "rows": rows]
             if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) { try? data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]) }
         }
         let speeds: [Float] = rateProbe ? [1, 1.25, 1.5] : [1]
-        for backend in nativeProbe ? ["zipvoice"] : rateProbe ? ["matcha", "piper"] : ["matcha", "piper", "system"] {
+        for backend in nativeProbe || rateProbe ? ["zipvoice"] : ["zipvoice", "system"] {
             for speed in speeds {
             for iteration in 0...4 {
                 let start = Date()
@@ -984,9 +1088,7 @@ import UIKit
                             samples += try await zip.generate(text: part, directory: directory.appendingPathComponent("ZipVoice"), referenceFile: ProcessInfo.processInfo.arguments.contains("--zipvoice-male-ui-testing") ? "reference-dylan.json" : "reference.json", cancellation: SynthesisCancellation()).samples
                         }
                         audio = SpeechAudio(samples: samples, sampleRate: 24000)
-                    case "matcha": audio = try await matcha.generate(text: text, directory: directory.appendingPathComponent("Matcha"), speed: speed, cancellation: SynthesisCancellation())
-                    case "piper": audio = try await piper.generate(text: text, directory: directory.appendingPathComponent("Piper"), speed: speed, cancellation: SynthesisCancellation())
-                    default: audio = try await system.generate(text: text, voiceID: systemVoiceID)
+                            default: audio = try await system.generate(text: text, voiceID: systemVoiceID)
                     }
                     rows.append(["backend": backend, "speed": speed, "iteration": iteration, "synthesisSeconds": Date().timeIntervalSince(start), "audioSeconds": audio.duration, "samples": audio.samples.count, "footprintMiB": Self.probeFootprint(), "baselineFootprintMiB": baselineMemory, "processLifetimePeakFootprintMiB": Self.probePeakFootprint(), "cpuSeconds": Self.probeCPUSeconds() - cpuStart, "averageCPUPercent": 100 * (Self.probeCPUSeconds() - cpuStart) / max(0.001, Date().timeIntervalSince(start)), "thermal": ProcessInfo.processInfo.thermalState.rawValue])
                     if iteration == 0, backend == "zipvoice" {
@@ -1004,14 +1106,14 @@ import UIKit
         }
         rows.append(["phase": "passed"]); write()
     }
-    /// Whole-process CPU time; 100% in the report means one occupied CPU core.
+    /// 统计整个进程的 CPU 时间；报告中的 100% 表示占满一个 CPU 核心。
     private static func probeCPUSeconds() -> Double {
         var usage = rusage()
         guard getrusage(RUSAGE_SELF, &usage) == 0 else { return -1 }
         return Double(usage.ru_utime.tv_sec + usage.ru_stime.tv_sec)
             + Double(usage.ru_utime.tv_usec + usage.ru_stime.tv_usec) / 1_000_000
     }
-    /// Kernel high-water mark since process launch, including model loading.
+    /// 读取内核记录的进程启动以来内存峰值，包含模型加载阶段。
     private static func probePeakFootprint() -> Double {
         var info = task_vm_info_data_t()
         var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
@@ -1034,6 +1136,7 @@ import UIKit
     }
     /// 后台先检查轻量模型的真实 PCM，再模拟开源合成卡住并在同一播放代次恢复。
     /// 全程使用隔离测试文稿，不修改用户正文。
+    /// 仅调试探针：记录后台音频生命周期，不代替真机后台播放验收。
     func runBackgroundProbe() async {
         guard ProcessInfo.processInfo.arguments.contains("--ui-testing"),
               ProcessInfo.processInfo.arguments.contains("--background-speech-testing") else { return }
@@ -1045,16 +1148,16 @@ import UIKit
         }
         do {
             let native = ProcessInfo.processInfo.arguments.contains("--zipvoice-ui-testing")
-            rate = 1.25; rendererMode = native ? (ProcessInfo.processInfo.arguments.contains("--zipvoice-male-ui-testing") ? "zipvoice-male" : "zipvoice") : "matcha"; playFromBeginning(); record("started-matcha")
+            rate = 1.25; rendererMode = native ? (ProcessInfo.processInfo.arguments.contains("--zipvoice-male-ui-testing") ? "zipvoice-male" : "zipvoice") : "zipvoice"; playFromBeginning(); record("started-native")
             let started = Date(); var backgroundSeconds = 0; var lastFrame: Int64 = 0
             while backgroundSeconds < 110 && Date().timeIntervalSince(started) < 300 {
                 try await Task.sleep(for: .seconds(5))
                 if let error { throw NSError(domain: "BackgroundSpeechProbe", code: 1, userInfo: [NSLocalizedDescriptionKey: error]) }
                 if UIApplication.shared.applicationState == .background && renderedFrames > lastFrame { backgroundSeconds += 5 }
-                lastFrame = renderedFrames; record("matcha-sample")
+                lastFrame = renderedFrames; record("native-sample")
             }
             guard backgroundSeconds >= 110, !usesSystem, underruns == 0 else { throw SpeechFailure.generation }
-            record(native ? "zipvoice-background-passed" : "matcha-background-passed")
+            record("zipvoice-background-passed")
             if native { pause(); record("passed"); return }
             stop(); rendererMode = "piper"; injectedStall = false; playFromBeginning()
             let generation = transportGeneration; record("started-stall")
@@ -1069,6 +1172,7 @@ import UIKit
         } catch { stop(); record("failed: " + error.localizedDescription) }
     }
     /// XCTest 无法连接时使用的真机探针，只允许隔离测试资料库，不打开用户文稿。
+    /// 仅调试探针：验证平台播放、暂停、定位和恢复状态，并写入测试报告。
     func runDeviceProbe() async {
         guard ProcessInfo.processInfo.arguments.contains("--ui-testing"),
               ProcessInfo.processInfo.arguments.contains("--speech-device-probe") else { return }
@@ -1114,7 +1218,7 @@ import UIKit
             record("playing", ["route": AVAudioSession.sharedInstance().currentRoute.outputs.map { $0.portType.rawValue }])
             if expectedRenderer != "system" {
                 let beforeGraphPause = renderedFrames, sameGeneration = ledger.generation
-                engine.pause()
+                playback.pauseEngine()
                 try await waitFor("audio graph restart with retained PCM") { renderedFrames > beforeGraphPause + 4800 }
                 try require(ledger.generation == sameGeneration && !usesSystem && !systemFallback,
                             "Audio graph restart changed the voice or playback generation")
@@ -1160,20 +1264,177 @@ import UIKit
         }
     }
     #endif
+    /// 按段落索引或源文本 UTF-16 偏移定位；notifyPosition 控制是否回调正文位置。
     func seek(to index: Int, notifyPosition: Bool = true) { seek(to: SpeechCursor(segment: min(max(0, index), max(0, parsed.segments.count - 1))), notifyPosition: notifyPosition) }
+    /// 按段落索引或源文本 UTF-16 偏移定位；notifyPosition 控制是否回调正文位置。
     func seek(toSourceOffset offset: Int, notifyPosition: Bool = true) { seek(to: parsed.speechCursor(at: offset), notifyPosition: notifyPosition) }
+    /// 按段落索引或源文本 UTF-16 偏移定位；notifyPosition 控制是否回调正文位置。
     private func seek(to target: SpeechCursor, notifyPosition: Bool) {
         let wasPlaying = playing, wasPaused = paused
         stop(); cursor = target; segmentIndex = target.segment
         if let chunk = parsed.speechChunk(from: target, skipCode: skipCode, renderer: rendererMode), notifyPosition { onPosition?(chunk.sourceOffset) }
         if wasPlaying { begin(at: target, initiallyPaused: wasPaused, useCheckpoint: false) }
     }
+    /// 跳到下一自然段；已无下一段时停止播放。
     func next() { if let next = parsed.adjacentParagraph(from: segmentIndex, forward: true) { seek(to: next) } else { stop() } }
+    /// 跳到上一自然段；正文开头保持在起点。
     func previous() { seek(to: parsed.adjacentParagraph(from: segmentIndex, forward: false) ?? 0) }
     private func nowPlaying() {
         #if os(iOS)
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = playing ? [MPMediaItemPropertyTitle: title, MPMediaItemPropertyArtist: "墨语引擎 · 第 \(segmentIndex + 1) 段", MPNowPlayingInfoPropertyPlaybackRate: paused ? 0 : rate] : nil
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = playing ? [MPMediaItemPropertyTitle: title, MPMediaItemPropertyArtist: L10n.tr("墨语引擎 · 第 \(segmentIndex + 1) 段"), MPNowPlayingInfoPropertyPlaybackRate: paused ? 0 : rate] : nil
         if !playing { audioSessionQueue.async { try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation) } }
         #endif
     }
+}
+
+/// 串行管理系统音频图。AVAudioPlayerNode.stop 会等待系统内部音频队列，
+/// 因此所有图控制都在 Default QoS 队列异步执行，主线程只读取短锁保护的快照。
+/// 停止代次和 FIFO 顺序保证快速停止、跳段、重新播放不会互相清空新缓冲区。
+private final class SpeechAudioGraph: @unchecked Sendable {
+    struct State {
+        var engineRunning = false
+        var playerPlaying = false
+        var sampleTime: Int64?
+        var rate: Float = 1
+    }
+    let engine = AVAudioEngine()
+    private let player = AVAudioPlayerNode()
+    private let pitch = AVAudioUnitTimePitch()
+    let format = AVAudioFormat(standardFormatWithSampleRate: 24000, channels: 1)!
+    private let queue = DispatchQueue(label: "InkEngine.Speech.PlaybackGraph", qos: .default)
+    private let lock = NSLock()
+    private var state = State()
+    private var epoch: UInt64 = 0
+    private var activeEpoch: UInt64 = 0
+    private var clock: DispatchSourceTimer?
+    #if DEBUG
+    private var stopCount = 0
+    private var stopMainThreadCount = 0
+    private var lastStopQoS: UInt32 = 0
+    private var maxStopMilliseconds: Double = 0
+    /// 隔离验收读取真实 stop 执行线程与耗时，不额外触碰系统音频图。
+    var diagnostics: String {
+        lock.lock(); defer { lock.unlock() }
+        return "graphStops=\(stopCount);graphMainStops=\(stopMainThreadCount);graphStopQoS=\(lastStopQoS);graphStopMaxMs=\(maxStopMilliseconds)"
+    }
+    #endif
+
+    /// 初始化图连接；后续控制和时钟采样使用同一个队列。
+    init() {
+        submit { [self] in
+            engine.attach(player); engine.attach(pitch)
+            engine.connect(player, to: pitch, format: format)
+            engine.connect(pitch, to: engine.mainMixerNode, format: format)
+            pitch.pitch = 0
+        }
+    }
+    deinit { clock?.cancel() }
+    /// 只复制已有快照；持锁期间不调用任何 AVFoundation API，也不等待音频队列。
+    var snapshot: State { lock.lock(); defer { lock.unlock() }; return state }
+    private var currentEpoch: UInt64 { lock.lock(); defer { lock.unlock() }; return epoch }
+    private func isCurrent(_ ticket: UInt64) -> Bool { currentEpoch == ticket }
+    private func submit(_ work: @escaping @Sendable () -> Void) {
+        // 避免从交互线程提交的工作继承其 QoS，重新与系统 Default 音频队列发生反转。
+        queue.async(qos: .default, flags: .enforceQoS, execute: work)
+    }
+    private func publish(_ ticket: UInt64) {
+        let value = State(engineRunning: engine.isRunning, playerPlaying: player.isPlaying,
+                          sampleTime: player.lastRenderTime.flatMap { player.playerTime(forNodeTime: $0)?.sampleTime }, rate: pitch.rate)
+        lock.lock(); defer { lock.unlock() }
+        if epoch == ticket { state = value }
+    }
+    private func stopClock() { clock?.cancel(); clock = nil }
+    private func startClock() {
+        guard clock == nil else { return }
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now(), repeating: .milliseconds(20), leeway: .milliseconds(2))
+        timer.setEventHandler { [weak self] in
+            guard let self else { return }
+            self.publish(self.activeEpoch)
+        }
+        clock = timer; timer.resume()
+    }
+    /// 启动可能等待硬件的音频图；等待期间挂起 Swift 任务，不阻塞调用线程。
+    func start() async throws {
+        let ticket = currentEpoch
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            submit { [self] in
+                guard isCurrent(ticket) else { continuation.resume(throwing: CancellationError()); return }
+                do {
+                    if !engine.isRunning { try engine.start() }
+                    activeEpoch = ticket; publish(ticket); continuation.resume()
+                } catch { continuation.resume(throwing: error) }
+            }
+        }
+    }
+    /// 在图队列登记缓冲区；停止前的过期请求不会进入新一轮播放。
+    func schedule(_ buffer: AVAudioPCMBuffer, completion: @escaping @Sendable () -> Void) {
+        let ticket = currentEpoch
+        submit { [self] in
+            guard isCurrent(ticket) else { return }
+            player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { _ in completion() }
+        }
+    }
+    /// 按登记顺序启动播放，错误通过异步回调交还主状态机。
+    func play(rate: Float, completion: @escaping @Sendable (Error?) -> Void) {
+        let ticket = currentEpoch
+        submit { [self] in
+            guard isCurrent(ticket) else { completion(CancellationError()); return }
+            do {
+                if !engine.isRunning { try engine.start() }
+                pitch.rate = rate
+                if !player.isPlaying { player.play() }
+                activeEpoch = ticket; publish(ticket); startClock(); completion(nil)
+            } catch { completion(error) }
+        }
+    }
+    /// 暂停保留节点时间线；后续恢复仍在同一串行队列执行。
+    func pause() {
+        let ticket = currentEpoch
+        submit { [self] in
+            guard isCurrent(ticket) else { return }
+            player.pause(); stopClock(); publish(ticket)
+        }
+    }
+    /// 清空当前节点，按需暂停引擎；立即使旧时钟快照失效，不同步等待系统 stop。
+    func stop(pauseEngine: Bool) {
+        lock.lock()
+        epoch &+= 1
+        let ticket = epoch
+        state.playerPlaying = false; state.sampleTime = nil
+        if pauseEngine { state.engineRunning = false }
+        lock.unlock()
+        submit { [self] in
+            #if DEBUG
+            let started = ContinuousClock.now
+            let main = Thread.isMainThread, qos = qos_class_self().rawValue
+            #endif
+            player.stop()
+            if pauseEngine { engine.pause() }
+            stopClock(); activeEpoch = ticket; publish(ticket)
+            #if DEBUG
+            let elapsed = started.duration(to: .now)
+            let milliseconds = Double(elapsed.components.seconds) * 1000 + Double(elapsed.components.attoseconds) / 1e15
+            lock.lock()
+            stopCount += 1; stopMainThreadCount += main ? 1 : 0
+            lastStopQoS = qos; maxStopMilliseconds = max(maxStopMilliseconds, milliseconds)
+            lock.unlock()
+            #endif
+        }
+    }
+    /// 修改播放倍率；避免界面调整滑块时直接进入系统音频图锁。
+    func setRate(_ rate: Float) {
+        let ticket = currentEpoch
+        submit { [self] in
+            guard isCurrent(ticket) else { return }
+            pitch.rate = rate; publish(ticket)
+        }
+    }
+    #if DEBUG
+    /// 仅供路由恢复验证模拟引擎中断，不直接接触主线程上的音频图。
+    func pauseEngine() {
+        let ticket = currentEpoch
+        submit { [self] in engine.pause(); publish(ticket) }
+    }
+    #endif
 }

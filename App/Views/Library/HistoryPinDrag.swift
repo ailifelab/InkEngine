@@ -1,3 +1,4 @@
+import InkCore
 #if os(macOS)
 import SwiftUI
 import AppKit
@@ -5,13 +6,14 @@ import AppKit
 // List 会接管落点事件，因此由拖动源根据同一窗口内的行位置完成本地排序。
 // 只传递历史条目的 UUID；拖出固定区域不改变顺序，也不会复制或修改文稿。
 struct HistoryPinDragHandle: NSViewRepresentable {
+    @Environment(\.locale) private var appLocale
     let id: UUID
     let label: String
     let moveTo: (UUID, UUID) -> Void
     func makeNSView(context: Context) -> PinDragView { PinDragView() }
     func updateNSView(_ view: PinDragView, context: Context) {
         view.recordID = id; view.moveTo = moveTo; view.setAccessibilityElement(true)
-        view.setAccessibilityRole(.image); view.setAccessibilityLabel("拖动 " + label)
+        view.setAccessibilityRole(.image); view.setAccessibilityLabel(L10n.tr("拖动 ") + label)
         view.setAccessibilityIdentifier("pinDrag-" + label)
     }
     final class PinDragView: NSView, NSDraggingSource {
@@ -60,6 +62,7 @@ import UIKit
 
 /// 固定记录在本窗口内排序，不走文件拖放；手柄的触摸不会触发文稿按钮。
 struct MobileHistoryPinDragHandle: UIViewRepresentable {
+    @Environment(\.locale) private var appLocale
     let id: UUID
     let label: String
     let color: Color
@@ -68,7 +71,7 @@ struct MobileHistoryPinDragHandle: UIViewRepresentable {
     func updateUIView(_ view: PinDragView, context: Context) {
         view.recordID = id; view.moveTo = moveTo; view.tintColor = UIColor(color)
         view.accessibilityIdentifier = "pinDrag-" + label
-        view.accessibilityLabel = "拖动排序 " + label
+        view.accessibilityLabel = L10n.tr("拖动排序 ") + label
     }
     final class PinDragView: UIView {
         private final class WeakView { weak var view: PinDragView?; init(_ view: PinDragView) { self.view = view } }

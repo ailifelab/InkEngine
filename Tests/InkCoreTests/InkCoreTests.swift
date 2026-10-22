@@ -3,6 +3,51 @@ import CryptoKit
 @testable import InkCore
 
 final class InkCoreTests: XCTestCase {
+    func testIncrementalLineIndexMatchesRebuildAtEveryBoundary() throws {
+        let sources = ["", "a", "a\r\nb\n", "\r\n\r\n", "😀\r中文\u{85}尾\u{2028}行\u{2029}\n", "a\nb\nc\nd\ne\nf\n"]
+        for text in sources {
+            let source = text as NSString, index = SourceLineIndex(text)
+            let boundaries = (0...source.length).filter { offset in
+                offset == 0 || offset == source.length || !(0xDC00...0xDFFF).contains(source.character(at: offset))
+            }
+            for start in boundaries { for end in boundaries where end >= start {
+                for replacement in ["", "x", "\r", "\n", "\r\n", "😀", "中文\n"] {
+                    let next = source.replacingCharacters(in: NSRange(location: start, length: end - start), with: replacement)
+                    let update = try XCTUnwrap(index.applyingEdit(in: NSRange(location: start, length: end - start), replacementLength: replacement.utf16.count, updatedText: next as NSString))
+                    let rebuilt = SourceLineIndex(next)
+                    XCTAssertEqual(update.index.starts, rebuilt.starts, "\(text.debugDescription) \(start)..\(end) \(replacement.debugDescription)")
+                    XCTAssertEqual(update.index.length, rebuilt.length)
+                    XCTAssertEqual(update.previousLineCount - update.replacedLines.count + update.insertedLines.count, rebuilt.starts.count)
+                }
+            } }
+        }
+    }
+
+    func testIncrementalLineIndexRejectsStaleChanges() {
+        let index = SourceLineIndex("中文\n尾")
+        XCTAssertNil(index.applyingEdit(in: NSRange(location: NSNotFound, length: 0), replacementLength: 0, updatedText: ""))
+        XCTAssertNil(index.applyingEdit(in: NSRange(location: 0, length: 99), replacementLength: 0, updatedText: ""))
+        XCTAssertNil(index.applyingEdit(in: NSRange(location: 0, length: 0), replacementLength: 1, updatedText: "不匹配"))
+    }
+
+    func testIncrementalLineIndexAcrossRepeatedEditsAndUndo() throws {
+        var text = String(repeating: "中文😀\r\n第二行\n", count: 10_000)
+        var index = SourceLineIndex(text)
+        for replacement in ["新增\n\n", "", "\r", "😀\u{2028}尾"] {
+            let oldText = text, oldIndex = index
+            let range = NSRange(location: index.starts[10_000], length: index.starts[10_003] - index.starts[10_000])
+            let removed = (text as NSString).substring(with: range)
+            text = (text as NSString).replacingCharacters(in: range, with: replacement)
+            index = try XCTUnwrap(index.applyingEdit(in: range, replacementLength: replacement.utf16.count, updatedText: text as NSString)).index
+            XCTAssertEqual(index.starts, SourceLineIndex(text).starts)
+            let undoRange = NSRange(location: range.location, length: replacement.utf16.count)
+            index = try XCTUnwrap(index.applyingEdit(in: undoRange, replacementLength: removed.utf16.count, updatedText: oldText as NSString)).index
+            text = oldText
+            XCTAssertEqual(index.starts, oldIndex.starts)
+            XCTAssertEqual(index.length, oldIndex.length)
+        }
+    }
+
     private func repository() throws -> LibraryRepository {
         try LibraryRepository(root: FileManager.default.temporaryDirectory.appendingPathComponent("InkTests-\(UUID())"))
     }

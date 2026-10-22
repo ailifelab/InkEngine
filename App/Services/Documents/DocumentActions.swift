@@ -36,7 +36,7 @@ struct PreparedFile: Identifiable { let id = UUID(); let url: URL }
                 }
                 var name = transfer.manifest.title.map { "/\\:\0".contains($0) ? "_" : String($0) }.joined()
                 while name.utf8.count > 180 { name.removeLast() }
-                if name == "." || name == ".." || name.isEmpty { name = "小说目录" }
+                if name == "." || name == ".." || name.isEmpty { name = L10n.tr("小说目录") }
                 let url = directory.appendingPathComponent(name + ".zip")
                 try ZIPArchive.write(to: url, paths: transfer.manifest.items.map { name + "/" + $0.relativePath }) { index in
                     try Task.checkCancellation()
@@ -61,7 +61,7 @@ struct PreparedFile: Identifiable { let id = UUID(); let url: URL }
         // HTML默认关联可能是源码编辑器；使用HTTPS关联明确找到系统默认浏览器。
         guard let browser = NSWorkspace.shared.urlForApplication(toOpen: URL(string: "https://example.com")!) else {
             if access { url.stopAccessingSecurityScopedResource() }
-            throw NSError(domain: "InkEngine.Preview", code: 1, userInfo: [NSLocalizedDescriptionKey: "未找到系统默认浏览器。"])
+            throw NSError(domain: "InkEngine.Preview", code: 1, userInfo: [NSLocalizedDescriptionKey: L10n.tr("未找到系统默认浏览器。")])
         }
         // 浏览器可能延后回应打开请求，不让文稿操作等待外部应用；失败仍回传界面。
         NSWorkspace.shared.open([url], withApplicationAt: browser, configuration: NSWorkspace.OpenConfiguration()) { _, error in
@@ -69,7 +69,7 @@ struct PreparedFile: Identifiable { let id = UUID(); let url: URL }
             Task { @MainActor in completion(error) }
         }
     }
-    static func saveAs(_ book: Manuscript) async throws -> URL? {
+    static func saveAs(_ book: Manuscript, validate: ((URL) async throws -> Void)? = nil) async throws -> URL? {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = book.fileName
         panel.canCreateDirectories = true; panel.isExtensionHidden = false; panel.allowsOtherFileTypes = true
@@ -96,10 +96,11 @@ struct PreparedFile: Identifiable { let id = UUID(); let url: URL }
         if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
             let directory = FileManager.default.temporaryDirectory.appendingPathComponent("InkEngineUITests/Exports", isDirectory: true)
             guard url.standardizedFileURL.path.hasPrefix(directory.standardizedFileURL.path + "/") else {
-                throw NSError(domain: "InkEngine.UITest", code: 1, userInfo: [NSLocalizedDescriptionKey: "测试另存仅允许写入隔离的 Exports 目录。"])
+                throw NSError(domain: "InkEngine.UITest", code: 1, userInfo: [NSLocalizedDescriptionKey: L10n.tr("测试另存仅允许写入隔离的 Exports 目录。")])
             }
         }
         #endif
+        try await validate?(url)
         try Data(book.content.utf8).write(to: url, options: .atomic)
         return url
     }
@@ -151,6 +152,7 @@ struct SystemShare: UIViewControllerRepresentable {
 
 #if os(iOS)
 struct DocumentFileName: View {
+    @Environment(\.locale) private var appLocale
     @Environment(\.dismiss) private var dismiss
     @Environment(\.paperTheme) private var theme
     @State var fileName: String
@@ -158,19 +160,19 @@ struct DocumentFileName: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("完整文件名（含扩展名）", text: $fileName)
+                TextField(L10n.tr("完整文件名（含扩展名）"), text: $fileName)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                     .accessibilityIdentifier("fileNameField")
                     .listRowBackground(theme.sidebar)
             }
             .scrollContentBackground(.hidden).background(theme.background.ignoresSafeArea())
             .foregroundStyle(theme.foreground)
-            .navigationTitle("另存为")
+            .navigationTitle(L10n.tr("另存为"))
             .toolbarBackground(theme.background, for: .navigationBar).toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(L10n.tr("取消")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("下一步") { completion(fileName) }
+                    Button(L10n.tr("下一步")) { completion(fileName) }
                         .disabled(!Manuscript.validFileName(fileName)).accessibilityIdentifier("confirmFileName")
                 }
             }

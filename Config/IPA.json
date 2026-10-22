@@ -10,6 +10,10 @@
   "prepare": [
     [
       "python3",
+      "Scripts/check_localizations.py"
+    ],
+    [
+      "python3",
       "Scripts/prepare_speech.py",
       "--verify"
     ],

@@ -2,6 +2,42 @@ import XCTest
 @testable import InkCore
 
 final class NeuralSpeechTests: XCTestCase {
+    func testExplicitPlayAtSavedEOFRestartsLastParagraphWithoutLoopingTheQueue() throws {
+        let source = "前面的段落已经读过。\n\n最后一段仍然要能开始朗读。\n\n\n"
+        let parsed = TextParser.parse(source, format: .txt)
+        let eof = parsed.speechCursor(at: source.utf16.count)
+        for renderer in ["system", "zipvoice", "zipvoice-male", "qwen"] {
+            XCTAssertNil(parsed.speechChunk(from: eof, skipCode: true, renderer: renderer))
+            let start = try XCTUnwrap(parsed.explicitPlaybackCursor(from: eof, skipCode: true, renderer: renderer))
+            let chunk = try XCTUnwrap(parsed.speechChunk(from: start, skipCode: true, renderer: renderer))
+            XCTAssertEqual(chunk.text, "最后一段仍然要能开始朗读。")
+            XCTAssertEqual(chunk.sourceOffset, (source as NSString).range(of: "最后一段").location)
+        }
+    }
+
+    func testExplicitPlayKeepsAnExistingMidSentenceAnchor() throws {
+        let source = "前面的句子。\n\n继续从这里开始，不能重读前面的文字。"
+        let parsed = TextParser.parse(source, format: .txt)
+        let offset = (source as NSString).range(of: "从这里").location
+        let cursor = parsed.speechCursor(at: offset)
+        for renderer in ["system", "zipvoice"] {
+            let start = try XCTUnwrap(parsed.explicitPlaybackCursor(from: cursor, skipCode: true, renderer: renderer))
+            XCTAssertEqual(start, cursor)
+            XCTAssertEqual(parsed.speechChunk(from: start, skipCode: true, renderer: renderer)?.sourceOffset, offset)
+        }
+    }
+
+    func testExplicitPlayAtEOFFindsTextBeforeSkippedCode() throws {
+        let source = "**最后一段中文正文。**\n\n```swift\nlet value = 42\n```\n"
+        let parsed = TextParser.parse(source, format: .markdown)
+        let eof = parsed.speechCursor(at: source.utf16.count)
+        let start = try XCTUnwrap(parsed.explicitPlaybackCursor(from: eof, skipCode: true, renderer: "system"))
+        XCTAssertEqual(parsed.speechChunk(from: start, skipCode: true, renderer: "system")?.text, "最后一段中文正文。")
+        let codeOnly = TextParser.parse("```swift\nlet value = 42\n```", format: .markdown)
+        XCTAssertNil(codeOnly.explicitPlaybackCursor(from: codeOnly.speechCursor(at: 1000), skipCode: true, renderer: "system"))
+        XCTAssertNil(TextParser.parse("", format: .txt).explicitPlaybackCursor(from: SpeechCursor(segment: 0), skipCode: true, renderer: "system"))
+    }
+
     func testNativeModelCapacityDoesNotLoseTextAcrossChunks() throws {
         let source = "夜风穿过窗棂，书页轻轻翻动。她说：“明天我们去银行，先等雨停。”" + String(repeating: "银行行长正在看账本，", count: 8)
         let parsed = TextParser.parse(source, format: .txt)

@@ -48,7 +48,7 @@ final class MultiCodeDecoderCoreML {
         }
 
         // Position 0: feed hidden_states from CodeDecoder
-        var (_, kc0, vc0) = try step(
+        let (_, kc0, vc0) = try step(
             embed: ensureNCHW(hiddenState, channels: inputWidth),
             position: 0, keyCache: keyCache, valueCache: valueCache, state: mlState)
         if !isStateful { keyCache = kc0; valueCache = vc0 }

@@ -18,11 +18,13 @@ OUTPUT = ROOT / 'App/Resources/Legal/third-party-notices.md'
 def render():
     registry = json.loads(REGISTRY.read_text())
     sections = ['# 开源许可与第三方声明',
-                '墨语引擎原创源码采用 GPL-3.0-or-later。第三方组件保留其原有版权和许可。下列许可文本不改变各组件的授权范围，也不替代源码分发义务。',
+                '墨语引擎原创源码采用 MIT License。第三方组件保留其原有版权和许可。下列许可文本不改变各组件的授权范围，也不替代源码分发义务。',
                 '项目源码与构建说明：https://github.com/ailifelab/InkEngine',
                 '## 组件与来源']
     texts = {'LICENSE': (ROOT / 'LICENSE').read_text()}
     for component in registry['components']:
+        if component.get('includedInCurrentApp') is False:
+            continue
         paths = []
         for item in component['licenseFiles']:
             path = ROOT / item['path']

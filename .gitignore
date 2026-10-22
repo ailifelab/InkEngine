@@ -1,6 +1,8 @@
 # Local builds, delivery, research and private records
 .build/
 build/
+/build
+build.noindex/
 DerivedData/
 TestResults/
 Releases/
@@ -60,3 +62,9 @@ xcuserdata/
 .DS_Store
 __pycache__/
 *.pyc
+
+# Retired speech assets kept locally for the future Sherpa migration.
+Vendor/SpeechRuntime/RetiredAssets/espeak-ng-data/
+
+# Retired speech model assets are kept locally only (not part of the public source).
+Vendor/SpeechRuntime/RetiredAssets/

@@ -44,6 +44,7 @@ struct ReadingLayout: @unchecked Sendable {
         var shown: [TextSegment] = []
         var tables: [TableRowSpan] = []
         for index in first..<parsed.segments.count {
+            if Task.isCancelled { break }
             if output.length >= 7000 { break }
             let segment = parsed.segments[index]
             if let table = segment.table {
@@ -83,6 +84,7 @@ struct ReadingLayout: @unchecked Sendable {
         let path = CGPath(rect: CGRect(origin: .zero, size: size), transform: nil)
         var ranges: [NSRange] = [], start = 0
         while start < output.length {
+            if Task.isCancelled { break }
             let frame = CTFramesetterCreateFrame(setter, CFRange(location: start, length: 0), path, nil)
             let visible = CTFrameGetVisibleStringRange(frame)
             guard visible.length > 0 else { break }

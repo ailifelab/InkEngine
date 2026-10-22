@@ -15,13 +15,13 @@ public enum InkError: LocalizedError, Equatable {
     case invalidDocument, tooLarge, invalidEncoding, invalidFrame, authentication, replay, unpaired
     public var errorDescription: String? {
         switch self {
-        case .invalidDocument: return "文稿数据或校验不正确，未覆盖本地文稿。"
-        case .tooLarge: return "初版支持最多 20 MiB 的 UTF-8 文稿。请先拆分文件。"
-        case .invalidEncoding: return "无法识别文件编码，请先转为 UTF-8 或 UTF-16 文本文件。"
-        case .invalidFrame: return "接收到无效或过大的传输数据。"
-        case .authentication: return "安全校验失败，请断开后重新配对。"
-        case .replay: return "传输序列校验失败。"
-        case .unpaired: return "请先在两台设备上确认配对。"
+        case .invalidDocument: return L10n.tr("文稿数据或校验不正确，未覆盖本地文稿。")
+        case .tooLarge: return L10n.tr("初版支持最多 20 MiB 的 UTF-8 文稿。请先拆分文件。")
+        case .invalidEncoding: return L10n.tr("无法识别文件编码，请先转为 UTF-8 或 UTF-16 文本文件。")
+        case .invalidFrame: return L10n.tr("接收到无效或过大的传输数据。")
+        case .authentication: return L10n.tr("安全校验失败，请断开后重新配对。")
+        case .replay: return L10n.tr("传输序列校验失败。")
+        case .unpaired: return L10n.tr("请先在两台设备上确认配对。")
         }
     }
 }

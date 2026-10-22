@@ -1,14 +1,13 @@
 Ink Engine / 墨语引擎
-Copyright (C) 2026 AILife Lab and contributors
+Copyright (c) 2026 AILife Lab and contributors
 
-Original project source is licensed under GNU GPL version 3 or, at your option,
-any later version (SPDX-License-Identifier: GPL-3.0-or-later). See LICENSE.
-This software is provided without warranty.
+Original project source is licensed under the MIT License (SPDX-License-Identifier: MIT).
+See LICENSE. This software is provided without warranty.
 
 Third-party files retain their original copyrights and licenses; this notice
 never replaces upstream license terms. Offline license texts are included in
 App/Resources/Legal/third-party-notices.md; the reviewed direct dependency
-inventory is Vendor/SpeechRuntime/distribution-licenses.json. See Docs/OpenSource/Preparation.md,
+inventory is Vendor/SpeechRuntime/distribution-licenses.json. See
 Vendor/SpeechRuntime/Licenses, Sources/NativeQwen/LICENSE.txt (within the vendor
 package), Scripts/NativeSpeech/*-LICENSE, and model SOURCE.json/license records.
 Model weights and prebuilt runtime frameworks are not part of this source Git

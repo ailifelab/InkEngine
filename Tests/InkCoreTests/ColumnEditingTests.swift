@@ -2,6 +2,25 @@ import XCTest
 @testable import InkCore
 
 final class ColumnEditingTests: XCTestCase {
+    func testSelectAllIncludesLongRowsWhenLastRowIsShortOrEmpty() {
+        for text in ["abcdefgh\n中，。Z\n甲\t乙\na", "abcdefgh\n中，。Z\n甲\t乙\n"] {
+            let targets = ColumnSelection.allTargets(in: text)
+            XCTAssertEqual(targets.count, 4)
+            XCTAssertEqual(targets.first?.range, NSRange(location: 0, length: 8))
+            XCTAssertEqual(ColumnSelection.edit(text, targets: targets, command: .insert("Q")).text, "Q\nQ\nQ\nQ")
+            XCTAssertEqual(targets.map(\.virtualSpaces), [0, 0, 0, 0])
+        }
+    }
+    func testTouchRectangleSupportsReverseDragAndFullWidthPunctuation() {
+        let text = "A甲，。Z\nB乙！？Z\nC丙：（Z"
+        let forward = ColumnSelection.targets(in: text, from: .init(row: 0, column: 3), to: .init(row: 2, column: 7))
+        let reverse = ColumnSelection.targets(in: text, from: .init(row: 2, column: 7), to: .init(row: 0, column: 3))
+        XCTAssertEqual(forward.map(\.range), reverse.map(\.range))
+        XCTAssertEqual(ColumnSelection.edit(text, targets: reverse, command: .insert("Q")).text, "A甲QZ\nB乙QZ\nC丙QZ")
+        XCTAssertEqual(ColumnSelection.displayWidth(of: "，", column: 3), 2)
+        XCTAssertEqual(ColumnSelection.displayWidth(of: "\t", column: 3), 1)
+        XCTAssertEqual(ColumnSelection.displayWidth(of: "👨‍👩‍👧‍👦", column: 0), 2)
+    }
     func testKeyboardMovesEachCaretByWordAndKeepsOtherRows() {
         let text = "one two,three\na b;c\n"
         let initial = ColumnSelection.targets(in: text, from: .init(row: 0, column: 0), to: .init(row: 2, column: 0))

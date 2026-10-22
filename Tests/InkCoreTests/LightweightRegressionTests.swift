@@ -64,6 +64,67 @@ final class LightweightRegressionTests: XCTestCase {
         XCTAssertNil(sharedDirectory)
     }
 
+    func testReselectingUnchangedMarkdownRenewsBrokenBookmarkWithoutLosingState() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let root = folder.appendingPathComponent("Library")
+        let repo = try LibraryRepository(root: root)
+        let file = folder.appendingPathComponent("章节.md")
+        let bytes = Data("# 标题\n\n保留正文😀。".utf8)
+        try bytes.write(to: file)
+        var original = try await repo.openLocalFile(file).document
+        original.cursor = 4
+        original.bookmarks = [.init(name: "保留书签", offset: 4, content: original.content)]
+        try await repo.save(original)
+        let referenceURL = root.appendingPathComponent("Sources/\(original.id.uuidString).json")
+        var reference = try JSONDecoder().decode(LocalFileReference.self, from: Data(contentsOf: referenceURL))
+        reference.bookmark = Data("unusable security-scoped bookmark".utf8)
+        try JSONEncoder().encode(reference).write(to: referenceURL)
+
+        let reopened = try await repo.openLocalFile(file).document
+        XCTAssertEqual(reopened, original)
+        let renewed = try JSONDecoder().decode(LocalFileReference.self, from: Data(contentsOf: referenceURL))
+        XCTAssertNotEqual(renewed.bookmark, reference.bookmark)
+        #if os(macOS)
+        XCTAssertNotNil(renewed.bookmark)
+        #endif
+        XCTAssertEqual(renewed.diskDigest, LocalFileReference.digest(bytes))
+        XCTAssertEqual(try Data(contentsOf: file), bytes)
+        let books = try await repo.list()
+        XCTAssertEqual(books.map(\.id), [original.id])
+        let freshRepository = try LibraryRepository(root: root)
+        let restored = try await freshRepository.reloadLocalFile(original.id)
+        XCTAssertEqual(restored, original)
+    }
+
+    func testReconnectingRenamedMarkdownPreservesIdentityBookmarksAndProgress() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let repo = try LibraryRepository(root: folder.appendingPathComponent("Library"))
+        let oldFile = folder.appendingPathComponent("旧章名.md"), newFile = folder.appendingPathComponent("新章名.md")
+        let bytes = Data("# 标题\n\n保留正文😀。".utf8)
+        try bytes.write(to: oldFile)
+        var original = try await repo.openLocalFile(oldFile).document
+        original.cursor = 4
+        original.bookmarks = [.init(name: "保留书签", offset: 4, content: original.content)]
+        try await repo.save(original)
+        try FileManager.default.moveItem(at: oldFile, to: newFile)
+
+        var reconnected = try await repo.reconnectLocalFile(newFile, to: original.id)
+        XCTAssertEqual(reconnected.id, original.id)
+        XCTAssertEqual(reconnected.cursor, original.cursor)
+        XCTAssertEqual(reconnected.bookmarks, original.bookmarks)
+        XCTAssertEqual(reconnected.fileName, "新章名.md")
+        XCTAssertEqual(reconnected.content, original.content)
+        XCTAssertEqual(try Data(contentsOf: newFile), bytes)
+        // 恢复关联之后的保存仍须拒绝覆盖更晚的外部修改。
+        try Data("外部更新".utf8).write(to: newFile, options: .atomic)
+        reconnected.edit(content: "应用内修改")
+        do { try await repo.save(reconnected, writeSource: true); XCTFail("Must protect newer external text") }
+        catch { XCTAssertTrue(error.localizedDescription.contains("其他应用修改")) }
+        XCTAssertEqual(try String(contentsOf: newFile, encoding: .utf8), "外部更新")
+    }
+
     func testExternalChangesRejectOverwriteAndKeepUnsavedCopyRecoverable() async throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: folder) }

@@ -1,11 +1,6 @@
-Offline Chinese narration: Matcha female and ZipVoice Dylan male.
-Matcha model and vocoder: Apache-2.0; see Matcha/SOURCE.json and LICENSE.
-Native runtime: sherpa-onnx 1.13.8, Apache-2.0.
-https://github.com/k2-fsa/sherpa-onnx/tree/v1.13.8
-ONNX Runtime 1.28.1: MIT.
+Offline Chinese narration: ZipVoice Serena and Dylan, using Core ML.
+ONNX Runtime 1.28.1: MIT (Qwen support on Mac).
 https://github.com/microsoft/onnxruntime/tree/v1.28.1
-Linked eSpeak NG and phoneme/dictionary data: GPL-3.0-or-later.
-https://github.com/espeak-ng/espeak-ng
-Corresponding dependency/build source: https://github.com/k2-fsa/sherpa-onnx/tree/v1.13.8/cmake
-License texts are retained in Licenses/. Distribution must comply with all linked component licenses.
+Model and vocoder notices: ZipVoice/LICENSE and ZipVoice/VOCOS-LICENSE.
+Matcha, Sherpa, Piper and eSpeak are not included in this application build.
 The narration engine works locally and transmits no text or audio.

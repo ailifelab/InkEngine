@@ -18,6 +18,7 @@ public struct TransferManifest: Codable, Sendable {
     public init(id: UUID = UUID(), title: String, collection: NovelCollection? = nil, items: [Item]) {
         self.id = id; self.title = title; self.collection = collection; self.items = items
         self.collection?.sourceFolder = nil
+        self.collection?.sourceFolderBookmark = nil
     }
     public static func safePath(_ path: String) -> Bool {
         let parts = path.split(separator: "/", omittingEmptySubsequences: false)
@@ -31,7 +32,7 @@ public struct TransferManifest: Codable, Sendable {
               items.allSatisfy({ Self.safePath($0.relativePath) && $0.byteCount >= 0 && $0.byteCount <= 20 * 1024 * 1024 && $0.checksum.count == 64 && $0.checksum.allSatisfy(\.isHexDigit) }),
               items.reduce(Int64(0), { $0 + Int64($1.byteCount) }) <= 2 * 1024 * 1024 * 1024 else { throw InkError.invalidDocument }
         if let collection {
-            guard collection.sourceFolder == nil, !collection.alias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, collection.alias.count <= 200,
+            guard collection.sourceFolder == nil, collection.sourceFolderBookmark == nil, !collection.alias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, collection.alias.count <= 200,
                   Set(collection.entries.map(\.documentID)) == Set(items.map(\.documentID)), collection.entries.count == items.count,
                   collection.entries.allSatisfy({ entry in items.contains { $0.documentID == entry.documentID && $0.relativePath == entry.relativePath } }) else { throw InkError.invalidDocument }
         } else if items.count != 1 { throw InkError.invalidDocument }
@@ -58,5 +59,5 @@ public struct TransferReceipt: Sendable {
     public var keptLocal: Int
     /// 接收端真正可打开的入口；单文件冲突时指向新副本，目录始终指向保留章节结构的目录。
     public var entry: RecentEntry
-    public var note: String { "已同步 \(count) 个文件" + (conflicts > 0 ? "，保留 \(conflicts) 个冲突副本" : "") + (keptLocal > 0 ? "，\(keptLocal) 个本地较新版本保持原样" : "") + "。" }
+    public var note: String { L10n.tr("已同步 \(count) 个文件") + (conflicts > 0 ? L10n.tr("，保留 \(conflicts) 个冲突副本") : "") + (keptLocal > 0 ? L10n.tr("，\(keptLocal) 个本地较新版本保持原样") : "") }
 }

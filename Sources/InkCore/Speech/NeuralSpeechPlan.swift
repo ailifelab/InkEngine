@@ -89,6 +89,19 @@ extension ParsedText {
         let offset = segment.sourceOffsets.firstIndex(where: { $0 >= sourceOffset }) ?? segment.text.utf16.count
         return SpeechCursor(segment: index, offset: offset)
     }
+    /// An explicit Play at a saved EOF position restarts the last spoken paragraph.
+    /// Queue planning still ends at EOF; it must never rewind automatically.
+    public func explicitPlaybackCursor(from cursor: SpeechCursor, skipCode: Bool, renderer: String) -> SpeechCursor? {
+        if speechChunk(from: cursor, skipCode: skipCode, renderer: renderer) != nil { return cursor }
+        guard !segments.isEmpty else { return nil }
+        for index in stride(from: min(max(0, cursor.segment), segments.count - 1), through: 0, by: -1) {
+            let segment = segments[index]
+            if (!skipCode || !segment.isCode) && SpeechInput.hasSpokenContent(segment.text) {
+                return SpeechCursor(segment: index)
+            }
+        }
+        return nil
+    }
     public func adjacentParagraph(from index: Int, forward: Bool) -> Int? {
         guard !segments.isEmpty else { return nil }
         var start = min(max(0, index), segments.count - 1)

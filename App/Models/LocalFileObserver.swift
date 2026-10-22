@@ -29,7 +29,11 @@ import Darwin
     }
 
     private static func signature(_ url: URL) -> String? {
-        guard let values = try? FileManager.default.attributesOfItem(atPath: url.path) else { return nil }
+        guard var values = try? FileManager.default.attributesOfItem(atPath: url.path) else { return nil }
+        if values[.type] as? FileAttributeType == .typeSymbolicLink {
+            guard let target = try? FileManager.default.attributesOfItem(atPath: url.resolvingSymlinksInPath().path) else { return nil }
+            values = target
+        }
         let modified = (values[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
         return "\(values[.systemFileNumber] ?? ""):\(values[.size] ?? ""):\(modified)"
     }

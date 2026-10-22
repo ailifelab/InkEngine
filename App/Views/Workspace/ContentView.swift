@@ -3,10 +3,23 @@ import InkCore
 import UniformTypeIdentifiers
 
 struct ContentView: View {
+    @Environment(\.locale) private var appLocale
     #if os(macOS)
     @State private var confirmSourceReload = false
     #endif
     @EnvironmentObject var model: AppModel
+    @Environment(\.workspaceEditorState) private var workspaceEditorState
+    @Environment(\.workspaceWindowID) private var workspaceWindowID
+    @Environment(\.workspacePaneID) private var workspacePaneID
+    @Environment(\.workspaceDocumentActive) private var workspaceDocumentActive
+    private var multipleDocumentSelectionAllowed: Bool {
+        guard let workspace = model.workspace, let window = workspaceWindowID else { return true }
+        return workspace.multipleDocumentsAllowed(window: window)
+    }
+    private var handlesDocumentActions: Bool {
+        guard let workspace = model.workspace else { return true }
+        return !workspaceSidebarOnly && workspaceDocumentActive && model.acceptsActions && workspace.focusedWindow == workspaceWindowID && workspace.window(workspaceWindowID ?? UUID())?.focusedPane == workspacePaneID
+    }
     @State private var importing = false
     @State private var folderSelection = false
     @State private var pendingFolder: URL?
@@ -14,12 +27,13 @@ struct ContentView: View {
     @State private var renamingNovel: NovelCollection?
     @State private var novelAlias = ""
     @State private var collapsedNovels: Set<UUID> = []
-    @State private var sidebarVisible = true
+    @Environment(\.workspaceSidebarOnly) private var workspaceSidebarOnly
+    @State private var navigationSection = "files"
     #if os(iOS)
     @State private var localDeletion: RecentEntry?
     #endif
-    @State private var compactColumn: NavigationSplitViewColumn = .sidebar
-    @State private var mobileWidth: CGFloat = 0
+    @Environment(\.workspaceHeight) private var workspaceHeight
+    @Environment(\.workspaceWidth) private var workspaceWidth
     @State private var showSettings = false
     @State private var showPrivacy = false
     @State private var showOutline = false
@@ -32,32 +46,35 @@ struct ContentView: View {
     @State private var exportFile: PreparedFile?
     @State private var shareFile: PreparedFile?
     @Environment(\.scenePhase) private var scenePhase
-    #if os(iOS)
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    #endif
 
-    var body: some View {
+    private var decoratedWorkspace: some View {
         workspace
         #if DEBUG && os(iOS)
         // 真机探针独占隔离样本，防止触摸编辑改变修订号而破坏样本续读检查。
         .allowsHitTesting(!(ProcessInfo.processInfo.arguments.contains("--ui-testing") && ProcessInfo.processInfo.arguments.contains("--speech-device-probe")))
         #endif
+        .simultaneousGesture(TapGesture().onEnded {
+            if let workspace = model.workspace, let window = workspaceWindowID, let pane = workspacePaneID {
+                Task { await workspace.focus(window: window, pane: pane) }
+            }
+        }, including: model.manualSaving ? .all : .none)
         .buttonStyle(KeycapButtonStyle())
         .background(workspaceTheme.background)
         .tint(workspaceTheme.highlight)
         .preferredColorScheme(documentIsDark ? .dark : .light)
         #if os(macOS)
         .background(WindowPaperBridge(theme: workspaceTheme))
-        .onChange(of: model.book?.fileName) { _, name in NSApp.keyWindow?.title = name ?? "墨语引擎" }
+        .onChange(of: model.book?.fileName) { _, name in if !model.manualSaving && handlesDocumentActions { NSApp.keyWindow?.title = name ?? L10n.tr("墨语引擎") } }
         #endif
-        .onChange(of: model.detailRequest) { _, _ in compactColumn = .detail }
+        .onChange(of: model.detailRequest) { _, _ in
+            if workspaceSidebarOnly { revealDocument() }
+        }
         .onChange(of: model.libraryRequest) { _, _ in
-            sidebarVisible = true; compactColumn = .sidebar
+            if let workspace = model.workspace, let window = workspaceWindowID { workspace.setWindowSidebarVisible(true, window: window) }
             if let entry = model.requestedHistoryEntry, entry.isFolder { collapsedNovels.remove(entry.id) }
         }
-        .onChange(of: model.book?.id) { _, id in if id == nil { compactColumn = .sidebar } }
         #if os(iOS)
-        .fileImporter(isPresented: $importing, allowedContentTypes: folderSelection ? [.folder] : [.data], allowsMultipleSelection: !folderSelection) { result in
+        .fileImporter(isPresented: $importing, allowedContentTypes: folderSelection ? [.folder] : [.data], allowsMultipleSelection: !folderSelection && multipleDocumentSelectionAllowed) { result in
             switch result {
             case .success(let urls):
                 if folderSelection, let url = urls.first { pendingFolder = url; novelAlias = url.lastPathComponent; namingNovel = true }
@@ -74,21 +91,25 @@ struct ContentView: View {
                     if let folder { await model.importFolder(folder, alias: alias) }
                     else if let novel { await model.renameNovel(novel, alias: alias) }
                 }
-            }
+            }.appLocalized()
         }
-        .sheet(isPresented: $showPrivacy) { PrivacyView() }
-        .sheet(isPresented: $showSettings) { SpeechSettings(speech: model.speech, model: model).buttonStyle(KeycapButtonStyle()) }
-        .sheet(isPresented: $showSearch) { SearchReplacePanel(model: model, replacing: replaceTab).buttonStyle(KeycapButtonStyle()) }
-        .sheet(isPresented: $showBookmarks) { BookmarksView(model: model).buttonStyle(KeycapButtonStyle()) }
-        .sheet(isPresented: $showCache) { CacheManager(model: model, speech: model.speech).buttonStyle(KeycapButtonStyle()) }
+    }
+
+    private var presentedWorkspace: some View {
+        decoratedWorkspace
+        .sheet(isPresented: $showPrivacy) { PrivacyView().appLocalized() }
+        .sheet(isPresented: $showSettings) { SpeechSettings(speech: model.speech, model: model).buttonStyle(KeycapButtonStyle()).appLocalized() }
+        .sheet(isPresented: $showSearch) { SearchReplacePanel(model: model, replacing: replaceTab).buttonStyle(KeycapButtonStyle()).appLocalized() }
+        .sheet(isPresented: $showBookmarks) { BookmarksView(model: model).buttonStyle(KeycapButtonStyle()).appLocalized() }
+        .sheet(isPresented: $showCache) { CacheManager(model: model, speech: model.speech).buttonStyle(KeycapButtonStyle()).appLocalized() }
         #if os(iOS)
-        .sheet(isPresented: $model.showLocalDocuments) { LocalDocumentsView(model: model, onClose: { model.showLocalDocuments = false }).buttonStyle(KeycapButtonStyle()) }
-        .fullScreenCover(isPresented: $showOutline) { OutlineView(model: model).buttonStyle(KeycapButtonStyle()) }
+        .sheet(isPresented: Binding(get: { workspaceSidebarOnly && model.showLocalDocuments }, set: { model.showLocalDocuments = $0 })) { LocalDocumentsView(model: model, onClose: { model.showLocalDocuments = false }).buttonStyle(KeycapButtonStyle()).appLocalized() }
+        .fullScreenCover(isPresented: $showOutline) { OutlineView(model: model).buttonStyle(KeycapButtonStyle()).appLocalized() }
         .sheet(isPresented: $showFileName, onDismiss: {
             // 命名面板退出后才打开系统保存面板，避免两次呈现互相覆盖成白屏。
             if let file = pendingExport { pendingExport = nil; exportFile = file }
         }) {
-            DocumentFileName(fileName: model.book?.fileName ?? "文稿.txt") { name in
+            DocumentFileName(fileName: model.book?.fileName ?? L10n.tr("文稿.txt")) { name in
                 guard let book = model.book else { showFileName = false; return }
                 do {
                     var copy = book
@@ -96,12 +117,12 @@ struct ContentView: View {
                     pendingExport = try DocumentActions.prepare(copy)
                     showFileName = false
                 } catch { model.error = error.localizedDescription }
-            }.buttonStyle(KeycapButtonStyle())
+            }.buttonStyle(KeycapButtonStyle()).appLocalized()
         }
         #else
-        .sheet(isPresented: $showOutline) { OutlineView(model: model).buttonStyle(KeycapButtonStyle()) }
+        .sheet(isPresented: $showOutline) { OutlineView(model: model).buttonStyle(KeycapButtonStyle()).appLocalized() }
         #endif
-        .sheet(isPresented: $model.showNearby, onDismiss: { model.pendingSync = nil }) { NearbyView(service: model.nearby, model: model).buttonStyle(KeycapButtonStyle()) }
+        .sheet(isPresented: Binding(get: { handlesDocumentActions && model.showNearby }, set: { model.showNearby = $0 }), onDismiss: { model.pendingSync = nil }) { NearbyView(service: model.nearby, model: model).buttonStyle(KeycapButtonStyle()).appLocalized() }
         #if os(iOS)
         .fullScreenCover(item: $exportFile) { file in
             SystemExporter(file: file) { url in
@@ -117,16 +138,21 @@ struct ContentView: View {
         .sheet(item: $shareFile) { SystemShare(file: $0) { shareFile = nil } }
         #endif
         #if os(macOS)
-        .alert("重新载入原文件？", isPresented: $confirmSourceReload) {
-            Button("取消", role: .cancel) { }
-            Button("放弃当前修改并载入", role: .destructive) { Task { await model.reloadSourceDiscardingEdits() } }
-        } message: { Text("当前未保存的修改将被磁盘上的最新内容替换。可先另存修改。") }
+        .alert(L10n.tr("重新载入原文件？"), isPresented: $confirmSourceReload) {
+            Button(L10n.tr("取消"), role: .cancel) { }
+            Button(L10n.tr("放弃当前修改并载入"), role: .destructive) { Task { await model.reloadSourceDiscardingEdits() } }
+        } message: { Text(L10n.tr("当前未保存的修改将被磁盘上的最新内容替换。可先另存修改。")) }
         #endif
-        .alert("操作未完成", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("知道了") { model.error = nil } } message: { Text(model.error ?? "") }
+        .alert(L10n.tr("操作未完成"), isPresented: Binding(get: { handlesDocumentActions && model.error != nil }, set: { if !$0 { model.error = nil } })) { Button(L10n.tr("知道了")) { model.error = nil } } message: { Text(model.error ?? "") }
         #if os(iOS)
         .modifier(LocalDocumentDeletion(model: model, entry: $localDeletion))
         #endif
+    }
+
+    var body: some View {
+        presentedWorkspace
         .onChange(of: scenePhase) { _, phase in
+            guard !model.manualSaving else { return }
             if phase != .active { persist() }
             else {
                 model.nearby.discoverRememberedDevices()
@@ -138,8 +164,9 @@ struct ContentView: View {
                 }
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("InkSaveAs"))) { _ in saveAs() }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("InkSaveAs"))) { _ in if handlesDocumentActions { saveAs() } }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("InkDocumentAction"))) { note in
+            guard handlesDocumentActions else { return }
             switch note.object as? String {
             case "open": chooseImport()
             case "folder": chooseImport(folder: true)
@@ -153,12 +180,17 @@ struct ContentView: View {
             case "save": save()
             case "privacy": showPrivacy = true
             case "settings": model.commitEditing(); showSettings = true
+            case "speech": if !model.editing { Task { await model.toggleSpeech() } }
+            #if os(macOS)
+            case "preview": Task { await model.previewHTML() }
+            #endif
             case "history": returnToLibrary()
             default: break
             }
         }
-        .onContinueUserActivity("org.ailifelab.inkengine.read", perform: model.handoff)
+        .onContinueUserActivity("org.ailifelab.inkengine.read") { activity in if handlesDocumentActions { model.handoff(activity) } }
         .onOpenURL { url in
+            guard !model.manualSaving else { return }
             if (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
                 pendingFolder = url; novelAlias = url.lastPathComponent; namingNovel = true
             } else { Task { await model.importFiles([url]) } }
@@ -170,95 +202,21 @@ struct ContentView: View {
     private var documentIsDark: Bool { workspaceTheme == .dark }
 
     @ViewBuilder private var workspace: some View {
-        #if os(macOS)
-        VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Color.clear.frame(width: 76, height: 1)
-                Button { sidebarVisible.toggle() } label: { Image(systemName: "sidebar.left") }
-                    .accessibilityIdentifier("toggleChapterSidebar").accessibilityLabel("历史记录与章节")
-                libraryActions.fixedSize(horizontal: true, vertical: false)
-                Spacer(minLength: 0)
-                Text(model.book?.fileName ?? "墨语引擎").font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
-                Spacer(minLength: 0)
-                if model.book != nil { documentActions }
-            }.buttonStyle(KeycapButtonStyle(compact: true))
-                .padding(.horizontal, 12).frame(height: 54)
-                .background { WindowDragRegion() }
-            Divider().opacity(0.35)
-            HSplitView {
-                if sidebarVisible { sidebar.frame(minWidth: 240, idealWidth: 288, maxWidth: 360) }
-                document.frame(minWidth: 550, maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }.background(workspaceTheme.background).ignoresSafeArea(edges: .top)
-        #else
-        GeometryReader { geometry in
-            // 宽屏并排，窄屏单页切换；显式管理历史入口，避免系统再插入一个边栏按钮。
-            if geometry.size.width >= 1000 {
-                HStack(spacing: 0) {
-                    if sidebarVisible {
-                        NavigationStack { sidebar.toolbar(.hidden, for: .navigationBar) }
-                            .frame(width: 288)
-                        Divider().opacity(0.35)
-                    }
-                    NavigationStack { document.toolbar(.visible, for: .navigationBar) }
-                }
-            } else {
-                NavigationStack {
-                    if compactColumn == .sidebar {
-                        sidebar.toolbar(.hidden, for: .navigationBar)
-                    } else { document.toolbar(.visible, for: .navigationBar) }
-                }
-            }
-            Color.clear.frame(width: 0, height: 0).allowsHitTesting(false)
-                .onAppear { mobileWidth = geometry.size.width }
-                .onChange(of: geometry.size.width) { _, width in mobileWidth = width }
-        }
-        .toolbarBackground(workspaceTheme.background, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
-        #endif
+        if workspaceSidebarOnly { sidebar } else { document }
     }
 
     private var sidebar: some View {
-            VStack(spacing: 0) {
-                HStack(spacing: 10) {
-                    if model.editing || model.book == nil {
-                    Image("BrandLogo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 40, height: 40)
-                        .accessibilityHidden(true)
-                    }
-                    VStack(alignment: .leading) {
-                        Text("历史记录").font(.headline).lineLimit(2)
-                        Text("本地文件与目录").font(.caption2).tracking(2).foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    #if os(iOS)
-                    if model.book != nil && mobileWidth < 1000 {
-                        Button { compactColumn = .detail } label: { Image(systemName: "chevron.right") }
-                            .accessibilityLabel("返回当前文稿").accessibilityIdentifier("returnToDocument")
-                    }
-                    #endif
-                }.padding(.horizontal, 20).padding(.top, 22).padding(.bottom, 20)
-                #if os(iOS)
-                // 历史页始终提供文件入口。已有文稿、清空历史或竖屏折叠都不能隐藏打开和新建。
-                InkGlassContainer {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                    Button { Task { await model.create() } } label: { Label("新建文稿", systemImage: "plus").frame(maxWidth: .infinity) }.accessibilityIdentifier("newBook")
-                    Button { chooseImport() } label: { Label("打开文件", systemImage: "folder").frame(maxWidth: .infinity) }.accessibilityIdentifier("importBook")
-                    Button { Task { await model.resumeLast() } } label: { Label("继续上次阅读", systemImage: "bookmark").frame(maxWidth: .infinity) }.accessibilityIdentifier("resumeLast")
-                    Button { model.showNearby = true } label: { Label("附近设备", systemImage: "laptopcomputer.and.iphone").frame(maxWidth: .infinity) }.accessibilityIdentifier("nearbyDevices")
-                }.buttonStyle(KeycapButtonStyle(compact: horizontalSizeClass == .regular))
-                    .lineLimit(1).minimumScaleFactor(0.85).padding(.horizontal, 14).padding(.bottom, 16)
-                }
-                Button("隐私与使用说明", systemImage: "hand.raised") { showPrivacy = true }.accessibilityIdentifier("privacyPolicy").padding(.horizontal, 14).padding(.bottom, 12)
-                Button { chooseImport(folder: true) } label: { Label("添加小说目录", systemImage: "folder.badge.plus").frame(maxWidth: .infinity) }
-                    .accessibilityIdentifier("importNovel").padding(.horizontal, 14).padding(.bottom, 12)
-                #endif
+        VStack(spacing: 0) {
+            Picker(L10n.tr("导航"), selection: $navigationSection) {
+                Text(L10n.tr("文稿")).tag("files")
+                Text(L10n.tr("大纲")).tag("outline")
+                Text(L10n.tr("书签")).tag("bookmarks")
+            }.pickerStyle(.segmented).labelsHidden().padding(12).accessibilityIdentifier("navigationSections")
+            if navigationSection == "files" {
                 List {
                         let pinned = model.history.ordered.filter { model.history.pinned.contains($0.id) }
                         if !pinned.isEmpty {
-                            Section("已固定 · 可拖拽排序") {
+                            Section(L10n.tr("已固定 · 可拖拽排序")) {
                                 #if os(macOS)
                                 ForEach(pinned) { entry in
                                     HStack(spacing: 6) {
@@ -279,30 +237,56 @@ struct ContentView: View {
                                 #endif
                             }
                         }
-                        Section("最近打开 · 最多 100 条") {
+                        Section(L10n.tr("最近打开 · 最多 100 条")) {
                             ForEach(model.history.ordered.filter { !model.history.pinned.contains($0.id) }) { entry in
                                 historyRow(entry).modifier(HistorySwipeActions(model: model, entry: entry))
                             }
                         }
                 }.listStyle(.plain).scrollContentBackground(.hidden)
                     .accessibilityIdentifier("libraryList")
-                HStack(spacing: 12) {
-                    #if os(iOS)
-                    Button { model.showLocalDocuments = true } label: { Label("本机文稿", systemImage: "folder").frame(maxWidth: .infinity) }.accessibilityIdentifier("localDocuments")
-                    #endif
-                    Button { model.commitEditing(); showCache = true } label: { Label("缓存管理", systemImage: "externaldrive").frame(maxWidth: .infinity) }.accessibilityIdentifier("cacheManager").accessibilityLabel("缓存与书签管理")
-                }.buttonStyle(KeycapButtonStyle(compact: true)).lineLimit(1).minimumScaleFactor(0.8)
-                    .padding(.horizontal, 14).padding(.vertical, 12)
+            } else if navigationSection == "outline" {
+                List { headingRows }.listStyle(.plain).scrollContentBackground(.hidden)
+                    .accessibilityIdentifier("documentOutlineList")
+            } else {
+                List {
+                    ForEach(model.activeBookmarks) { bookmark in
+                        Button(bookmark.name) { model.jump(bookmark.offset); revealDocument() }
+                            .accessibilityIdentifier("bookmark-" + bookmark.name)
+                    }
+                    Button(L10n.tr("阅读书签"), systemImage: "bookmark") { showBookmarks = true }
+                }.listStyle(.plain).scrollContentBackground(.hidden)
             }
-            .background(workspaceTheme.sidebar)
-            .foregroundStyle(workspaceTheme.foreground)
             #if os(iOS)
-            .navigationTitle("历史记录")
+            Divider()
+            HStack {
+                Menu {
+                    Button(L10n.tr("新建文稿"), systemImage: "plus") { Task { await model.create() }; revealDocument() }.accessibilityIdentifier("newBook")
+                    Button(L10n.tr("打开文件"), systemImage: "folder") { chooseImport() }.accessibilityIdentifier("importBook")
+                    Button(L10n.tr("添加小说目录"), systemImage: "folder.badge.plus") { chooseImport(folder: true) }.accessibilityIdentifier("importNovel")
+                    Button(L10n.tr("本机文稿"), systemImage: "doc.text") { model.showLocalDocuments = true }.accessibilityIdentifier("localDocuments")
+                } label: { Label(L10n.tr("文稿"), systemImage: "plus") }
+                Spacer()
+                Menu {
+                    Button(L10n.tr("字号与朗读设置"), systemImage: "slider.horizontal.3") { showSettings = true }.accessibilityIdentifier("speechSettings")
+                    LanguageMenu()
+                    Button(L10n.tr("缓存管理"), systemImage: "externaldrive") { showCache = true }.accessibilityIdentifier("cacheManager")
+                    Button(L10n.tr("附近设备"), systemImage: "laptopcomputer.and.iphone") { model.showNearby = true }.accessibilityIdentifier("nearbyDevices")
+                    Button(L10n.tr("隐私与使用说明"), systemImage: "hand.raised") { showPrivacy = true }.accessibilityIdentifier("privacyPolicy")
+                } label: { Image(systemName: "gearshape") }.accessibilityLabel(L10n.tr("设置与设备"))
+            }.padding(12).buttonStyle(KeycapButtonStyle(compact: true))
             #endif
+        }.background(workspaceTheme.sidebar).foregroundStyle(workspaceTheme.foreground)
+    }
+
+    private func revealDocument() {
+        guard let workspace = model.workspace, let window = workspaceWindowID else { return }
+        #if os(iOS)
+        if workspaceWidth < 900 { workspace.setWindowSidebarVisible(false, window: window) }
+        #endif
     }
 
     private func historyLabel(_ entry: RecentEntry) -> String {
-        entry.isFolder ? model.novels.first(where: { $0.id == entry.id })?.alias ?? "目录" : model.books.first(where: { $0.id == entry.id })?.title ?? "文稿"
+        entry.isFolder ? model.novels.first(where: { $0.id == entry.id })?.alias ?? L10n.tr("目录") : model.books.first(where: { $0.id == entry.id })?.title ?? L10n.tr("文稿")
     }
     @ViewBuilder private func historyRow(_ entry: RecentEntry) -> some View {
         if entry.isFolder, let novel = model.novels.first(where: { $0.id == entry.id }) {
@@ -313,11 +297,11 @@ struct ContentView: View {
             }.contextMenu {
                 pinAction(entry)
                 transferActions(entry)
-                Button("修改目录别名") { pendingFolder = nil; renamingNovel = novel; novelAlias = novel.alias; namingNovel = true }
-                Button("新建章节") { Task { await model.createChapter(in: novel) } }
-                Button("移除历史记录") { Task { await model.removeRecent(entry.id) } }
+                Button(L10n.tr("修改目录别名")) { pendingFolder = nil; renamingNovel = novel; novelAlias = novel.alias; namingNovel = true }
+                Button(L10n.tr("新建章节")) { Task { await model.createChapter(in: novel) } }
+                Button(L10n.tr("移除历史记录")) { Task { await model.removeRecent(entry.id) } }
                 #if os(iOS)
-                Button("删除本机目录…", role: .destructive) { localDeletion = entry }
+                Button(L10n.tr("删除本机目录…"), role: .destructive) { localDeletion = entry }
                 #endif
             }.listRowBackground(Color.clear)
         } else if let book = model.books.first(where: { $0.id == entry.id && $0.trashedAt == nil }) {
@@ -327,24 +311,24 @@ struct ContentView: View {
                     .contextMenu {
                         pinAction(entry)
                         transferActions(entry)
-                        Button("移除历史记录") { Task { await model.removeRecent(entry.id) } }
+                        Button(L10n.tr("移除历史记录")) { Task { await model.removeRecent(entry.id) } }
                         #if os(iOS)
-                        Button("删除本机文稿…", role: .destructive) { localDeletion = .init(id: book.id) }
+                        Button(L10n.tr("删除本机文稿…"), role: .destructive) { localDeletion = .init(id: book.id) }
                         #endif
                     }
-                if model.book?.id == book.id { headingRows }
+
             }.listRowSeparator(.hidden).listRowBackground(Color.clear)
         }
     }
     @ViewBuilder private func transferActions(_ entry: RecentEntry) -> some View {
-        Button(entry.isFolder ? "分享目录…" : "分享文件…", systemImage: "square.and.arrow.up") { share(entry) }
+        Button(entry.isFolder ? L10n.tr("分享目录…") : L10n.tr("分享文件…"), systemImage: "square.and.arrow.up") { share(entry) }
             .accessibilityIdentifier("shareHistory-" + entry.id.uuidString)
-        Button("同步数据到设备…", systemImage: "arrow.triangle.2.circlepath") { model.chooseSync(entry) }
+        Button(L10n.tr("同步数据到设备…"), systemImage: "arrow.triangle.2.circlepath") { model.chooseSync(entry) }
             .accessibilityIdentifier("syncHistory-" + entry.id.uuidString)
         Divider()
     }
     private func pinAction(_ entry: RecentEntry) -> some View {
-        Button(model.history.pinned.contains(entry.id) ? "取消固定" : "固定到顶部", systemImage: model.history.pinned.contains(entry.id) ? "pin.slash" : "pin") { Task { await model.pin(entry) } }
+        Button(model.history.pinned.contains(entry.id) ? L10n.tr("取消固定") : L10n.tr("固定到顶部"), systemImage: model.history.pinned.contains(entry.id) ? "pin.slash" : "pin") { Task { await model.pin(entry) } }
     }
 
     private func chapterRow(_ book: BookSummary, novel: NovelCollection) -> some View {
@@ -359,21 +343,21 @@ struct ContentView: View {
                     .contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityIdentifier("book-" + book.title)
                 .contextMenu {
-                    Button(novel.entries.first(where: { $0.documentID == book.id })?.includedInReading == true ? "作为资料，不参与连续朗读" : "参与连续朗读") { Task { await model.toggleChapterReading(novel, id: book.id) } }
+                    Button(novel.entries.first(where: { $0.documentID == book.id })?.includedInReading == true ? L10n.tr("作为资料，不参与连续朗读") : L10n.tr("参与连续朗读")) { Task { await model.toggleChapterReading(novel, id: book.id) } }
                     transferActions(.init(id: book.id))
-                    Button("固定此文件", systemImage: "pin") { Task { await model.pin(.init(id: book.id)) } }
+                    Button(L10n.tr("固定此文件"), systemImage: "pin") { Task { await model.pin(.init(id: book.id)) } }
                     #if os(iOS)
-                    Button("删除本机文稿…", role: .destructive) { localDeletion = .init(id: book.id) }
+                    Button(L10n.tr("删除本机文稿…"), role: .destructive) { localDeletion = .init(id: book.id) }
                     #endif
                 }
-            if model.book?.id == book.id { headingRows }
+
         }.listRowSeparator(.hidden).listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 10))
     }
 
     private var headingRows: some View {
         ForEach(model.parsed.chapters) { chapter in
-            Button { model.jump(chapter.sourceOffset); compactColumn = .detail } label: {
+            Button { model.jump(chapter.sourceOffset); revealDocument() } label: {
                 HStack(spacing: 6) {
                     Text("·").foregroundStyle(.secondary)
                     Text(chapter.title).font(.system(size: 12)).lineLimit(2)
@@ -387,9 +371,6 @@ struct ContentView: View {
             if let book = model.book {
                 VStack(spacing: 0) {
                     VStack(spacing: 0) {
-                        #if os(iOS)
-                        if model.editing { documentHeading(book) }
-                        #endif
                         #if os(macOS)
                         #if DEBUG
                         if ProcessInfo.processInfo.arguments.contains("--save-naming-ui-testing") {
@@ -408,208 +389,77 @@ struct ContentView: View {
                         #endif
                         if model.sourceConflict {
                             HStack {
-                                Text("原文件已改变，当前修改已保留").font(.caption)
+                                Text(L10n.tr("原文件已改变，当前修改已保留")).font(.caption)
                                 Spacer()
-                                Button("另存修改…") { saveAs() }
-                                Button("重新载入…") { confirmSourceReload = true }
+                                Button(L10n.tr("另存修改…")) { saveAs() }
+                                Button(L10n.tr("重新载入…")) { confirmSourceReload = true }
                             }.padding(8).background(workspaceTheme.sidebar)
                                 .accessibilityIdentifier("sourceConflict")
                         }
                         #endif
                         if model.busy { ProgressView().padding(4) }
                         if model.editing {
-                            NativeEditor(text: model.editorText, position: model.editorPosition, navigationID: model.editorNavigationID, fontSize: model.fontSize, format: book.highlightFormat, wrapsLines: model.wrapsLines && !model.columnMode, theme: model.readingTheme, columnMode: model.columnMode, mutation: model.editorMutation, onChange: model.textChanged, onPosition: { model.editorPosition = $0 }).id(book.id)
+                            NativeEditor(text: model.editorText, position: model.editorPosition, navigationID: model.editorNavigationID, fontSize: model.fontSize, format: book.highlightFormat, wrapsLines: model.wrapsLines && !model.columnMode, theme: model.readingTheme, columnMode: model.columnMode, mutation: model.editorMutation, onChange: model.textChanged, onPosition: { if (!model.manualSaving || handlesDocumentActions) && model.editorPosition != $0 { model.editorPosition = $0 } }, documentID: book.id, viewState: workspaceEditorState, readOnly: model.documentReadOnly, active: workspaceDocumentActive, navigationEnabled: handlesDocumentActions, onFocus: {
+                                if let workspace = model.workspace, let window = workspaceWindowID, let pane = workspacePaneID, workspace.window(window)?.panes.first(where: { $0.id == pane })?.selected == book.id {
+                                    Task { await workspace.focus(window: window, pane: pane) }
+                                }
+                            }).id(book.id)
                         } else { ReaderView(model: model, speech: model.speech, showSettings: $showSettings).id(book.id) }
-                        if model.editing { documentStatus(book) }
+                        if model.editing && workspaceHeight >= 300 { documentStatus(book) }
                     }
                     .background(workspaceTheme.background)
                 }
                 .background(workspaceTheme.background.ignoresSafeArea())
-                #if os(iOS)
-                .navigationTitle(book.fileName)
-                .navigationBarTitleDisplayMode(.inline)
-                .navigationBarBackButtonHidden(true)
-                .toolbarColorScheme(documentIsDark ? .dark : .light, for: .navigationBar)
-                #endif
-                #if os(iOS)
-                .toolbar {
-                    ToolbarItem(placement: .principal) {
-                        ModeTabs(editing: model.editing, busy: model.busy) { Task { await model.switchMode() } }
-                    }
-                    mobileToolbarActions
-                }
-                #endif
-                .userActivity("org.ailifelab.inkengine.read", isActive: true) { activity in
+                .userActivity("org.ailifelab.inkengine.read", isActive: !model.manualSaving || handlesDocumentActions) { activity in
                     activity.title = book.title; activity.isEligibleForHandoff = true
                     activity.isEligibleForSearch = false; activity.isEligibleForPublicIndexing = false
                     activity.userInfo = ["documentID": book.id.uuidString, "cursor": book.cursor, "revision": book.revision.uuidString]
                     activity.requiredUserInfoKeys = ["documentID"]
                 }
             } else {
-                ContentUnavailableView { Label("让文字被听见", systemImage: "book") }
-                description: { Text("从历史记录选择文稿，或使用历史记录顶部的新建与打开。文稿和阅读位置保存在你的设备上。") }
+                ContentUnavailableView { Label(L10n.tr("让文字被听见"), systemImage: "book") }
+                description: { Text(L10n.tr("从历史记录选择文稿，或使用历史记录顶部的新建与打开。文稿和阅读位置保存在你的设备上。")) }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(workspaceTheme.background)
             }
     }
 
-    private func documentHeading(_ book: Manuscript) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: model.editing ? "doc.text" : "book.closed")
-                .font(.system(size: 18, weight: .light)).foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(book.title).font(.system(size: 17, weight: .semibold)).lineLimit(1)
-                Text(book.fileName).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-            }
-            Spacer(minLength: 4)
-            Image(systemName: model.editing ? "pencil" : "headphones")
-                .font(.system(size: 14)).foregroundStyle(.secondary).accessibilityHidden(true)
-        }
-        .padding(.horizontal, 24).padding(.top, 22).padding(.bottom, 14)
-        .foregroundStyle(model.editing ? Color.primary : model.readingTheme.foreground)
-    }
-
     private func documentStatus(_ book: Manuscript) -> some View {
         VStack(spacing: 6) {
             HStack {
-                Text("编辑模式").accessibilityIdentifier("currentMode").accessibilityValue(book.fileName)
-                Text(model.dirty ? "未保存" : "已保存").foregroundStyle(model.dirty ? .orange : workspaceTheme.highlight)
+                Text(L10n.tr("编辑模式")).accessibilityIdentifier("currentMode").accessibilityValue(book.fileName)
+                Text(model.dirty ? L10n.tr("未保存") : L10n.tr("已保存")).foregroundStyle(model.dirty ? .orange : workspaceTheme.highlight)
                 Spacer(minLength: 4)
-                Text("\(model.textLength.formatted()) 字符").foregroundStyle(.secondary)
-                if model.columnMode { Text("列模式 · 跨行选择后同时编辑").foregroundStyle(.secondary) }
+                Text(L10n.tr("\(model.textLength.formatted()) 字符")).foregroundStyle(.secondary)
+                #if os(macOS)
+                if model.columnMode { Text(L10n.tr("列模式 · 跨行选择后同时编辑")).foregroundStyle(.secondary) }
+                #endif
+                #if os(iOS)
+                Toggle(L10n.tr("自动换行"), isOn: $model.lineWrappingEnabled)
+                    .toggleStyle(.button).buttonStyle(WorkspaceControlStyle())
+                    // 窄窗口优先保留操作名称，避免按钮被压成无法辨认的“自动…”。
+                    .fixedSize(horizontal: true, vertical: false).layoutPriority(1)
+                    .background(model.lineWrappingEnabled ? workspaceTheme.highlight.opacity(0.12) : Color.clear, in: RoundedRectangle(cornerRadius: 6))
+                    .accessibilityIdentifier("editorWrapToggle")
+                    .accessibilityValue(model.lineWrappingEnabled ? L10n.tr("开启") : L10n.tr("关闭"))
+                #endif
                 syntaxMenu(book)
-            }.font(.caption)
+            }.font(.caption).lineLimit(1)
+            #if os(iOS)
+            if model.columnMode {
+                Text(L10n.tr("列模式：单指拖动选择，双指滚动"))
+                    .font(.caption2).foregroundStyle(.secondary)
+                    .accessibilityIdentifier("columnTouchHint")
+            }
+            #endif
             if let status = model.exportStatus { Text(status).font(.caption2).foregroundStyle(.secondary).accessibilityIdentifier("exportStatus") }
         }.padding(.horizontal, 14).padding(.vertical, 6)
         .foregroundStyle(model.readingTheme.foreground)
     }
 
-    private var wrapButton: some View {
-        Button { model.wrapsLines.toggle() } label: { Image(systemName: "arrow.turn.down.left").frame(width: 14) }
-            .buttonStyle(KeycapButtonStyle(selected: model.wrapsLines, compact: true))
-            .accessibilityIdentifier("wrapToggle").accessibilityLabel("自动换行")
-            .accessibilityValue(model.wrapsLines ? "开启" : "关闭").help(model.wrapsLines ? "关闭自动换行" : "开启自动换行")
-    }
-
     private func syntaxMenu(_ book: Manuscript) -> some View {
         DocumentSyntaxMenu(model: model, book: book)
     }
-
-    #if os(iOS)
-    @ToolbarContentBuilder private var mobileToolbarActions: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) { libraryBackButton }.sharedBackgroundVisibility(.hidden)
-        ToolbarItemGroup(placement: .primaryAction) { mobileActionButtons }.sharedBackgroundVisibility(.hidden)
-    }
-
-    private var libraryBackButton: some View {
-        Button {
-            if mobileWidth >= 1000 { withAnimation { sidebarVisible.toggle() } }
-            else { compactColumn = .sidebar }
-        } label: { Image(systemName: "sidebar.left").frame(width: 14) }
-            .buttonStyle(KeycapButtonStyle()).accessibilityLabel("历史记录与章节").accessibilityIdentifier("showChapterSidebar")
-    }
-
-    @ViewBuilder private var mobileActionButtons: some View {
-        // 小屏优先保留模式切换、保存、搜索；换行选项收进菜单，避免系统挤掉中间的阅读入口。
-        if model.editing && mobileWidth >= 400 { wrapButton }
-        if model.editing { Button { save() } label: { Image(systemName: "square.and.arrow.down").frame(width: 14) }.accessibilityLabel("保存").accessibilityIdentifier("saveDocument") }
-        Button { model.commitEditing(); replaceTab = false; showSearch = true } label: { Image(systemName: "magnifyingglass") }.accessibilityLabel(model.editing ? "搜索与替换" : "搜索正文").accessibilityIdentifier("outlineButton")
-        Menu {
-            if model.editing && mobileWidth < 400 { Toggle("自动换行", isOn: $model.wrapsLines).accessibilityIdentifier("wrapToggle") }
-            if model.editing { Toggle("列模式", isOn: $model.columnMode).accessibilityIdentifier("columnModeToggle") }
-            Button("章节目录", systemImage: "list.bullet") { model.commitEditing(); showOutline = true }
-            if !model.editing { Button("阅读书签", systemImage: "bookmark") { showBookmarks = true }.accessibilityIdentifier("readingBookmarks") }
-            themePicker
-            Button("缓存与书签管理", systemImage: "externaldrive") { model.commitEditing(); showCache = true }.accessibilityIdentifier("cacheManager")
-            Divider()
-            Button("另存为…", systemImage: "doc.badge.plus") { saveAs() }.accessibilityIdentifier("saveAs")
-            Button("分享…", systemImage: "square.and.arrow.up") { share() }.accessibilityIdentifier("shareDocument")
-            Button("同步数据到设备…", systemImage: "arrow.triangle.2.circlepath") { if let book = model.book { model.chooseSync(.init(id: book.id)) } }.accessibilityIdentifier("syncDocument")
-            Divider()
-            Button("字号与朗读设置", systemImage: "textformat.size") { model.commitEditing(); showSettings = true }.accessibilityIdentifier("speechSettings")
-            Button("隐私与使用说明", systemImage: "hand.raised") { showPrivacy = true }.accessibilityIdentifier("privacyPolicy")
-            Button("返回历史记录", systemImage: "books.vertical") { returnToLibrary() }.accessibilityIdentifier("returnLibrary")
-        } label: { Image(systemName: "ellipsis").frame(width: 18) }.menuStyle(.button).buttonStyle(KeycapButtonStyle()).accessibilityIdentifier("documentMenu")
-    }
-    #endif
-
-    private var themeMenu: some View {
-        DocumentThemeMenu(model: model)
-    }
-    private var themePicker: some View {
-        Picker("界面主题", selection: $model.readingTheme) {
-            ForEach(ReadingTheme.allCases) { theme in Text(theme.label).tag(theme).accessibilityIdentifier("theme-" + theme.rawValue) }
-        }.pickerStyle(.inline)
-    }
-
-    #if os(macOS)
-    @ViewBuilder private var libraryActions: some View {
-        if model.book != nil && !model.editing {
-            Menu {
-                Button("新建文稿", systemImage: "plus") { Task { await model.create() } }
-                Button("打开本地文件…", systemImage: "folder") { chooseImport() }
-                Button("添加小说目录…", systemImage: "folder.badge.plus") { chooseImport(folder: true) }.accessibilityIdentifier("importNovel")
-                Button("继续上次阅读", systemImage: "bookmark") { Task { await model.resumeLast() } }
-                Button("隐私与使用说明", systemImage: "hand.raised") { showPrivacy = true }.accessibilityIdentifier("privacyPolicy")
-                Button("附近设备", systemImage: "laptopcomputer.and.iphone") { model.showNearby = true }
-            } label: { Label("历史记录", systemImage: "books.vertical") }
-                .menuStyle(.button).buttonStyle(KeycapButtonStyle(compact: true)).menuIndicator(.hidden)
-                .accessibilityIdentifier("libraryMenu")
-        } else {
-        HStack(spacing: 8) {
-            Button("新建", systemImage: "plus") { Task { await model.create() } }.accessibilityIdentifier("newBook").help("新建文稿 ⌘N")
-            Button("打开", systemImage: "folder") { chooseImport() }.accessibilityIdentifier("importBook").help("打开本地文件 ⌘O")
-            Spacer(minLength: 0)
-            Menu {
-                Button("添加小说目录…", systemImage: "folder.badge.plus") { chooseImport(folder: true) }.accessibilityIdentifier("importNovel")
-                Button("继续上次阅读", systemImage: "bookmark") { Task { await model.resumeLast() } }.accessibilityIdentifier("resumeLast")
-                Button("隐私与使用说明", systemImage: "hand.raised") { showPrivacy = true }.accessibilityIdentifier("privacyPolicy")
-                Button("附近设备", systemImage: "laptopcomputer.and.iphone") { model.showNearby = true }.accessibilityIdentifier("nearbyDevices")
-                Divider()
-            } label: { Image(systemName: "ellipsis").frame(width: 14) }
-                .menuStyle(.button).buttonStyle(KeycapButtonStyle(compact: true)).menuIndicator(.hidden).fixedSize().accessibilityIdentifier("libraryMenu").help("历史记录与设备")
-        }.buttonStyle(KeycapButtonStyle(compact: true)).fixedSize(horizontal: true, vertical: false)
-        }
-    }
-
-    private var documentActions: some View {
-        InkGlassContainer {
-        HStack(spacing: 10) {
-            ModeTabs(editing: model.editing, busy: model.busy) { Task { await model.switchMode() } }
-            if let book = model.book, TextFormat.detect(book.fileName) == .html {
-                Button { Task { await model.previewHTML() } } label: { Image(systemName: "globe").frame(width: 14) }
-                    .accessibilityIdentifier("previewHTML").accessibilityLabel("浏览器预览")
-                    .help("在默认浏览器中预览 HTML")
-            }
-            if model.editing {
-            Button { save() } label: { Image(systemName: "square.and.arrow.down").frame(width: 14) }
-                .accessibilityIdentifier("saveDocument").accessibilityLabel("保存").help("保存文稿 ⌘S")
-            }
-            Button { model.commitEditing(); replaceTab = false; showSearch = true } label: { Image(systemName: "magnifyingglass").frame(width: 14) }
-                .accessibilityIdentifier("outlineButton").accessibilityLabel(model.editing ? "搜索与替换" : "搜索正文").help("搜索 ⌘F")
-            if model.editing { wrapButton }
-            if model.editing { themeMenu }
-            Menu {
-                if model.editing { Toggle("列模式", isOn: $model.columnMode).accessibilityIdentifier("columnModeToggle") }
-                Button("章节目录", systemImage: "list.bullet") { model.commitEditing(); showOutline = true }
-                if !model.editing { Button("阅读书签", systemImage: "bookmark") { showBookmarks = true }.accessibilityIdentifier("readingBookmarks") }
-                Button("缓存与书签管理", systemImage: "externaldrive") { model.commitEditing(); showCache = true }.accessibilityIdentifier("cacheManager")
-                Divider()
-                Button("另存为…", systemImage: "doc.badge.plus") { saveAs() }.accessibilityIdentifier("saveAs")
-                Button("分享…", systemImage: "square.and.arrow.up") { share() }.accessibilityIdentifier("shareDocument")
-            Button("同步数据到设备…", systemImage: "arrow.triangle.2.circlepath") { if let book = model.book { model.chooseSync(.init(id: book.id)) } }.accessibilityIdentifier("syncDocument")
-                Divider()
-                Button("字号与朗读设置", systemImage: "slider.horizontal.3") { model.commitEditing(); showSettings = true }.accessibilityIdentifier("speechSettings")
-                Divider()
-                Button("隐私与使用说明", systemImage: "hand.raised") { showPrivacy = true }.accessibilityIdentifier("privacyPolicy")
-                Button("返回历史记录", systemImage: "books.vertical") { returnToLibrary() }
-            } label: { Image(systemName: "ellipsis").frame(width: 14) }
-                .menuStyle(.button).buttonStyle(KeycapButtonStyle(compact: true)).menuIndicator(.hidden).fixedSize().accessibilityIdentifier("documentMenu").help("当前文稿选项")
-        }.buttonStyle(KeycapButtonStyle(compact: true))
-            .fixedSize(horizontal: true, vertical: false)
-        }
-    }
-    #endif
 
     private func chooseImport(folder: Bool = false) {
         #if os(macOS)
@@ -617,7 +467,7 @@ struct ContentView: View {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = folder; panel.canChooseFiles = !folder
         panel.allowsMultipleSelection = !folder; panel.canCreateDirectories = false
-        panel.prompt = folder ? "选择目录" : "打开"
+        panel.prompt = folder ? L10n.tr("选择目录") : L10n.tr("打开")
         #if DEBUG
         if folder, let initial = ProcessInfo.processInfo.environment["INK_IMPORT_FOLDER"] { panel.directoryURL = URL(fileURLWithPath: initial, isDirectory: true) }
         #endif
@@ -636,17 +486,23 @@ struct ContentView: View {
     }
 
     private func selectBook(_ id: UUID, reading: Bool? = nil) {
-        if model.book?.id == id { compactColumn = .detail }
-        else { Task { await model.open(id, reading: reading) } }
+        Task {
+            if model.book?.id != id {
+                if let workspace = model.workspace {
+                    await workspace.open(id, reading: reading ?? !model.editing, in: workspaceWindowID, pane: workspacePaneID)
+                } else { await model.open(id, reading: reading) }
+            }
+            revealDocument()
+        }
     }
 
     private func returnToLibrary() {
+        if let workspace = model.workspace, let window = workspaceWindowID { workspace.setWindowSidebarVisible(true, window: window); return }
         #if os(macOS)
         Task { await model.closeDocument() }
         #else
         Task {
             await model.closeDocument()
-            if model.book == nil { compactColumn = .sidebar }
         }
         #endif
     }
@@ -659,10 +515,16 @@ struct ContentView: View {
         Task { do { try await model.save() } catch { model.error = error.localizedDescription } }
     }
     private func save() {
+        if let workspace = model.workspace, let id = model.book?.id {
+            Task { _ = await workspace.saveDocument(id, window: workspaceWindowID) }; return
+        }
         guard model.book != nil else { return }
         if model.needsFileName { saveAs() } else { persist() }
     }
     private func saveAs() {
+        if let workspace = model.workspace, let id = model.book?.id {
+            Task { _ = await workspace.saveDocument(id, window: workspaceWindowID, saveAs: true) }; return
+        }
         model.commitEditing()
         Task {
             do {
@@ -704,7 +566,7 @@ struct ContentView: View {
             Text(book.title).font(.system(size: 14, weight: .medium)).lineLimit(2)
             HStack {
                 Text((book.fileName as NSString).pathExtension.uppercased()).font(.caption2).fontWeight(.medium)
-                if book.conflictOf != nil { Text("冲突已保留").foregroundStyle(.orange).font(.caption2) }
+                if book.conflictOf != nil { Text(L10n.tr("冲突已保留")).foregroundStyle(.orange).font(.caption2) }
                 Spacer()
                 Text(book.updatedAt, style: .date).font(.caption2)
             }.foregroundStyle(.secondary)

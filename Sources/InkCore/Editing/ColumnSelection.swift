@@ -23,18 +23,29 @@ public enum ColumnSelection {
     public struct Result { public var text: String; public var targets: [Target] }
 
     // 等宽编辑器中汉字和 emoji 占两格，Tab 到下一个四格制表位；整个字符始终作为一个单位。
-    private static func width(_ character: Character, column: Int) -> Int {
+    public static func displayWidth(of character: Character, column: Int) -> Int {
         if character == "\t" { return 4 - column % 4 }
         guard let scalar = character.unicodeScalars.first else { return 0 }
         let value = scalar.value
         let wide = (0x1100...0x115f).contains(value) || (0x2e80...0xa4cf).contains(value) || (0xac00...0xd7a3).contains(value) || (0xf900...0xfaff).contains(value) || (0xfe10...0xfe6f).contains(value) || (0xff01...0xff60).contains(value) || (0x20000...0x3fffd).contains(value)
         return wide || scalar.properties.isEmojiPresentation || character.unicodeScalars.contains(where: { $0.value == 0xfe0f }) ? 2 : 1
     }
-    private static func columns(_ text: String) -> Int { text.reduce(0) { $0 + width($1, column: $0) } }
+    private static func columns(_ text: String) -> Int { text.reduce(0) { $0 + displayWidth(of: $1, column: $0) } }
     public static func point(in text: String, at offset: Int, lineIndex: SourceLineIndex? = nil) -> Point {
         let source = text as NSString, lines = lineIndex.flatMap { $0.length == source.length ? $0 : nil } ?? SourceLineIndex(text)
         let offset = min(max(0, offset), source.length), row = lines.line(at: offset)
         return Point(row: row, column: columns(source.substring(with: NSRange(location: lines.starts[row], length: offset - lines.starts[row]))))
+    }
+    /// 全选覆盖所有行的最大标尺宽度，不能因末行较短而漏掉前面长行的尾部；选中不写入虚拟空格。
+    public static func allTargets(in text: String, lineIndex: SourceLineIndex? = nil) -> [Target] {
+        let lines = lineIndex.flatMap { $0.length == text.utf16.count ? $0 : nil } ?? SourceLineIndex(text)
+        var column = 0, maximum = 0
+        for character in text {
+            if character.isNewline { maximum = max(maximum, column); column = 0 }
+            else { column += displayWidth(of: character, column: column) }
+        }
+        maximum = max(maximum, column)
+        return targets(in: text, from: Point(row: 0, column: 0), to: Point(row: lines.starts.count - 1, column: maximum), lineIndex: lines)
     }
     public static func targets(in text: String, from a: Point, to b: Point, lineIndex: SourceLineIndex? = nil) -> [Target] {
         let source = text as NSString, lines = lineIndex.flatMap { $0.length == source.length ? $0 : nil } ?? SourceLineIndex(text)
@@ -46,7 +57,7 @@ public enum ColumnSelection {
             let line = source.substring(with: NSRange(location: start, length: end - start)).trimmingCharacters(in: .newlines)
             func boundary(_ desired: Int) -> String.Index {
                 var index = line.startIndex, column = 0
-                while index < line.endIndex && column < desired { column += width(line[index], column: column); index = line.index(after: index) }
+                while index < line.endIndex && column < desired { column += displayWidth(of: line[index], column: column); index = line.index(after: index) }
                 return index
             }
             let lo = boundary(left), hi = boundary(right)
@@ -74,7 +85,7 @@ public enum ColumnSelection {
                 let character = line[index]; characterColumns[index] = column
                 let next = kind(character)
                 if next != category { wordStops.insert(column) }
-                category = next; column += width(character, column: column); stops.append(column)
+                category = next; column += displayWidth(of: character, column: column); stops.append(column)
             }
             // 只分词当前选中的行，汉语按词跳转；不会为一次按键扫描整本长文。
             if byWord {

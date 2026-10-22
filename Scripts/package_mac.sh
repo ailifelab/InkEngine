@@ -5,13 +5,15 @@ cd "${0:A:h}/.."
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 export PATH="$DEVELOPER_DIR/usr/bin:$PATH"
 
-work="$PWD/build/LocalDistribution"
+work="$PWD/build.noindex/LocalDistribution"
 derived="$work/DerivedData"
 mkdir -p "$work"
 stage=$(mktemp -d "$work/staging.XXXXXX")
-trap 'rm -rf "$stage"' EXIT
+trap 'rm -rf "$stage"; python3 Scripts/mac_app_registry.py' EXIT
 
 python3 Scripts/prepare_speech.py --verify
+python3 Scripts/prepare_legal.py --check
+python3 Scripts/check_localizations.py
 swift Scripts/make_icons.swift "$PWD"
 swift Scripts/verify_branding.swift "$PWD"
 print 'Building macOS Release (arm64); full log: build/LocalDistribution/build.log'
@@ -26,6 +28,7 @@ fi
 
 app="$stage/Ink Engine.app"
 ditto "$derived/Build/Products/Release/Ink Engine.app" "$app"
+python3 Scripts/verify_speech_distribution.py "$app"
 codesign --verify --deep --strict --verbose=2 "$app"
 swift Scripts/verify_branding.swift "$PWD" "$app"
 python3 - "$app" <<'PY'
@@ -74,7 +77,7 @@ cat > "$stage/安装说明.txt" <<EOF
 更新：先退出旧版，再将新版拖入“应用程序”并确认替换。
 应用的标识保持不变，书库与偏好保存在应用数据目录中。
 安装包不包含个人文稿、书签、历史或语音缓存。
-Matcha 女声、ZipVoice Serena 女声与 Dylan 男声及运行库已内置。
+ZipVoice Serena 女声与 Dylan 男声及运行库已内置。
 Mac 额外提供 Qwen Serena 测试模型，初始朗读语速 1.25 倍；合成仍低于实时，适合分段试听。
 以上模型均可本地离线合成；系统朗读使用已安装的音色。
 

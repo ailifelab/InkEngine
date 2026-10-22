@@ -7,7 +7,6 @@ import json
 import shutil
 import subprocess
 import tempfile
-import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = ROOT / "Vendor/SpeechRuntime/runtime-lock.json"
@@ -61,11 +60,6 @@ def install(manifest):
                 destination.mkdir(parents=True, exist_ok=True)
                 for upstream, local in artifact["selectedFiles"].items():
                     shutil.copy2(source / upstream, destination / local)
-    shared_name = "Vendor/SpeechRuntime/Resources/espeak-ng-data.tar.bz2"
-    if checksum(ROOT / shared_name) != manifest["files"][shared_name]:
-        raise RuntimeError("Shared phoneme data checksum mismatch")
-    with tarfile.open(ROOT / shared_name, "r:bz2") as shared:
-        shared.extractall(ROOT / "App/Resources/Speech", filter="data")
     verify(manifest)
 
 if __name__ == "__main__":

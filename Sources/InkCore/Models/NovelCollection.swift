@@ -13,6 +13,7 @@ public struct NovelCollection: Codable, Identifiable, Sendable, Equatable {
     public var id: UUID
     public var alias: String
     public var sourceFolder: String?
+    public var sourceFolderBookmark: Data?
     public var entries: [Entry]
     public init(id: UUID = UUID(), alias: String, sourceFolder: String? = nil, entries: [Entry] = []) {
         self.id = id; self.alias = alias; self.sourceFolder = sourceFolder; self.entries = entries
@@ -61,6 +62,6 @@ public struct FolderImportReceipt: Sendable {
 public enum CollectionError: LocalizedError {
     case emptyFolder, invalidAlias
     public var errorDescription: String? {
-        switch self { case .emptyFolder: return "目录中没有支持的文本文件。"; case .invalidAlias: return "请输入不超过 200 个字的小说名称。" }
+        switch self { case .emptyFolder: return L10n.tr("目录中没有支持的文本文件。"); case .invalidAlias: return L10n.tr("请输入不超过 200 个字的小说名称。") }
     }
 }

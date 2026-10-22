@@ -12,16 +12,19 @@ final class DocumentTransferTests: XCTestCase {
         let first = Manuscript(title: "第1章", format: .markdown, content: "# 一\n正文😀", cursor: 4)
         let second = Manuscript(title: "第10章", format: .txt, content: "后续正文")
         try await sender.save(first); try await sender.save(second)
-        let collection = NovelCollection(alias: "整部小说", sourceFolder: "/private/电脑目录", entries: [.init(documentID: second.id, relativePath: "下篇/第10章.txt"), .init(documentID: first.id, relativePath: "第1章.md")])
+        var collection = NovelCollection(alias: "整部小说", sourceFolder: "/private/电脑目录", entries: [.init(documentID: second.id, relativePath: "下篇/第10章.txt"), .init(documentID: first.id, relativePath: "第1章.md")])
+        collection.sourceFolderBookmark = Data("local folder access".utf8)
         try await sender.saveCollection(collection)
         let prepared = try await sender.prepareTransfer(id: collection.id, isFolder: true); defer { prepared.remove() }
         XCTAssertNil(prepared.manifest.collection?.sourceFolder)
+        XCTAssertNil(prepared.manifest.collection?.sourceFolderBookmark)
         let receipt = try await receiver.receiveTransfer(prepared)
         XCTAssertEqual(receipt.count, 2)
         let copies = try await receiver.collections(), received = try await receiver.load(first.id)
         XCTAssertEqual(received.content, first.content); XCTAssertEqual(received.cursor, first.cursor)
         XCTAssertEqual(copies.first?.entries, prepared.manifest.collection?.entries)
         XCTAssertNil(copies.first?.sourceFolder)
+        XCTAssertNil(copies.first?.sourceFolderBookmark)
     }
     func testConflictingChapterKeepsBothInDirectory() async throws {
         let sender = try LibraryRepository(root: temporary()), receiver = try LibraryRepository(root: temporary())

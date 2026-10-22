@@ -18,7 +18,8 @@
           "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
         }
       ],
-      "note": "Apache applies to Sherpa code; does not override linked component licenses."
+      "note": "Apache applies to Sherpa code; does not override linked component licenses.",
+      "includedInCurrentApp": false
     },
     {
       "id": "onnxruntime",
@@ -67,7 +68,8 @@
       ],
       "additionalPermission": "none-obtained",
       "revisionEvidence": "sherpa-onnx v1.13.8 build recipe; not an independent attestation of exact prebuilt asset source",
-      "note": "ucd-tools COPYING in this fork is GPLv3; Unicode data and selected compatibility code carry separate notices."
+      "note": "ucd-tools COPYING in this fork is GPLv3; Unicode data and selected compatibility code carry separate notices.",
+      "includedInCurrentApp": false
     },
     {
       "id": "piper-phonemize",
@@ -83,7 +85,8 @@
           "sha256": "13746d509d74e55ea2265fbef204bb7cdbf84a8315b0207e988326cb54387028"
         }
       ],
-      "note": "MIT wrapper license does not cover or relicense eSpeak."
+      "note": "MIT wrapper license does not cover or relicense eSpeak.",
+      "includedInCurrentApp": false
     },
     {
       "id": "matcha",
@@ -95,11 +98,12 @@
       "distributionReview": "published-model-license",
       "licenseFiles": [
         {
-          "path": "App/Resources/Speech/Matcha/LICENSE",
+          "path": "Vendor/SpeechRuntime/RetiredAssets/Matcha/LICENSE",
           "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
         }
       ],
-      "note": "Separate from the GPL phonemization runtime; preserve per-artifact provenance."
+      "note": "Separate from the GPL phonemization runtime; preserve per-artifact provenance.",
+      "includedInCurrentApp": false
     },
     {
       "id": "zipvoice",

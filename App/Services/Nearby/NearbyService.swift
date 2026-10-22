@@ -19,7 +19,7 @@ struct NearbyPeer: Identifiable {
     static func load(allowInteraction: Bool) throws -> Curve25519.Signing.PrivateKey? {
         let context = LAContext()
         context.interactionNotAllowed = !allowInteraction
-        context.localizedReason = "读取墨语引擎自己保存的设备配对密钥"
+        context.localizedReason = L10n.tr("读取墨语引擎自己保存的设备配对密钥")
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
                                     kSecAttrAccount as String: "signing", kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne]
             .merging([kSecUseAuthenticationContext as String: context]) { _, new in new }
@@ -44,7 +44,7 @@ struct NearbyPeer: Identifiable {
     }
     private static func accessError(_ status: OSStatus) -> NSError {
         NSError(domain: NSOSStatusErrorDomain, code: Int(status), userInfo: [NSLocalizedDescriptionKey:
-            "无法读取本应用保存的设备配对密钥（\(status)）。请在“附近设备”中点击设备重新连接，按系统提示授权；也可撤销设备信任后重新配对。不会读取你的账号密码。"])
+            L10n.tr("无法读取本应用保存的设备配对密钥（\(status)）。请在“附近设备”中点击设备重新连接，按系统提示授权；也可撤销设备信任后重新配对。不会读取你的账号密码。")])
     }
     // 仅用户明确选择记住配对时写入钥匙串，启动和临时配对不持久化身份。
     static func save(_ key: Curve25519.Signing.PrivateKey) throws {
@@ -52,14 +52,17 @@ struct NearbyPeer: Identifiable {
         let values: [String: Any] = [kSecValueData as String: key.rawRepresentation, kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly]
         var status = SecItemUpdate(query as CFDictionary, values as CFDictionary)
         if status == errSecItemNotFound { status = SecItemAdd(query.merging(values) { _, new in new } as CFDictionary, nil) }
-        guard status == errSecSuccess else { throw NSError(domain: NSOSStatusErrorDomain, code: Int(status), userInfo: [NSLocalizedDescriptionKey: "无法保存钥匙串身份（\(status)），本次连接仍可临时配对。"] ) }
+        guard status == errSecSuccess else { throw NSError(domain: NSOSStatusErrorDomain, code: Int(status), userInfo: [NSLocalizedDescriptionKey: L10n.tr("无法保存钥匙串身份（\(status)），本次连接仍可临时配对。")] ) }
     }
 }
 
 @MainActor final class NearbyService: ObservableObject {
     @Published var peers: [NearbyPeer] = []
     @Published var running = false
-    @Published var status = "开始发现后，系统可能请求局域网权限。"
+    @Published var status = ""
+    var statusDescription: String {
+        status.isEmpty ? L10n.tr("开始发现后，系统可能请求局域网权限。") : status
+    }
     @Published var peerName = ""
     @Published var pairingCode: String?
     @Published var ready = false
@@ -128,7 +131,7 @@ struct NearbyPeer: Identifiable {
         guard !isTesting, !trusts.isEmpty, !identityLoaded else { return identity }
         guard let remembered = try loadIdentity(allowInteraction) else {
             throw NSError(domain: "InkEngine.Pairing", code: 1, userInfo: [NSLocalizedDescriptionKey:
-                "已记住设备，但本机配对密钥不存在。请撤销设备信任后重新核对配对码。原文稿与钥匙串记录不会被改动。"])
+                L10n.tr("已记住设备，但本机配对密钥不存在。请撤销设备信任后重新核对配对码。原文稿与钥匙串记录不会被改动。")])
         }
         identity = remembered; identityLoaded = true
         return identity
@@ -150,7 +153,7 @@ struct NearbyPeer: Identifiable {
     }
     func start() {
         guard !running else { return }
-        guard !isTesting else { status = "UI 测试不触发局域网授权。"; return }
+        guard !isTesting else { status = L10n.tr("UI 测试不触发局域网授权。"); return }
         do {
             let listener = try NWListener(using: parameters)
             listener.service = NWListener.Service(name: "\(localName) · \(deviceID.uuidString.prefix(6))", type: "_inkengine._tcp")
@@ -169,17 +172,17 @@ struct NearbyPeer: Identifiable {
                 }.sorted { $0.name < $1.name }
             } }
             browser.stateUpdateHandler = { [weak self] state in Task { @MainActor in
-                if case let .waiting(error) = state { self?.status = "发现受阻：\(error)。检查局域网权限、Wi-Fi 与防火墙，然后重试。" }
-                if case let .failed(error) = state { self?.error = "发现失败：\(error)"; self?.stop() }
+                if case let .waiting(error) = state { self?.status = L10n.tr("发现受阻：\(error)。检查局域网权限、Wi-Fi 与防火墙，然后重试。") }
+                if case let .failed(error) = state { self?.error = L10n.tr("发现失败：\(error)"); self?.stop() }
             } }
             self.browser = browser; browser.start(queue: .main); running = true
-            status = "正在寻找附近设备。请让两端 App 保持前台，并连接同一局域网。"
+            status = L10n.tr("正在寻找附近设备。请让两端 App 保持前台，并连接同一局域网。")
         } catch { self.error = error.localizedDescription; stop() }
     }
     private func networkState(_ state: NWListener.State) {
         switch state {
-        case .failed(let error): self.error = "监听失败：\(error)"; stop()
-        case .waiting(let error): status = "局域网不可用：\(error)。可在系统设置中检查权限，再重试。"
+        case .failed(let error): self.error = L10n.tr("监听失败：\(error)"); stop()
+        case .waiting(let error): status = L10n.tr("局域网不可用：\(error)。可在系统设置中检查权限，再重试。")
         default: break
         }
     }
@@ -189,7 +192,7 @@ struct NearbyPeer: Identifiable {
     func connect(_ peer: NearbyPeer) { disconnect(); peerName = peer.name; attach(NWConnection(to: peer.endpoint, using: parameters), allowIdentityInteraction: true) }
     private func attach(_ connection: NWConnection, allowIdentityInteraction: Bool = false) {
         self.connection = connection; sessionToken = UUID(); let token = sessionToken
-        status = "正在安全连接…"; frameDecoder = FrameDecoder(); receivedTransfers = []
+        status = L10n.tr("正在安全连接…"); frameDecoder = FrameDecoder(); receivedTransfers = []
         do { handshake = try SessionHandshake(identity: connectionIdentity(allowInteraction: allowIdentityInteraction), deviceID: deviceID, name: localName) }
         catch { fail(error); return }
         connection.stateUpdateHandler = { [weak self] state in Task { @MainActor in
@@ -199,12 +202,12 @@ struct NearbyPeer: Identifiable {
                 do { try self.sendFrame(JSONEncoder().encode(self.handshake!.hello), type: 0); self.receive(token) }
                 catch { self.fail(error) }
             case .failed(let error): self.fail(error)
-            case .waiting(let error): self.status = "连接等待：\(error)。源设备可能休眠或网络不可达。"
+            case .waiting(let error): self.status = L10n.tr("连接等待：\(error)。源设备可能休眠或网络不可达。")
             case .cancelled: self.disconnect()
             default: break
             }
         } }
-        connection.start(queue: .main); armTimeout(seconds: 30, note: "连接超时。检查源设备是否休眠、网络权限与 Wi-Fi，然后重试。")
+        connection.start(queue: .main); armTimeout(seconds: 30, note: L10n.tr("连接超时。检查源设备是否休眠、网络权限与 Wi-Fi，然后重试。"))
     }
     private func receive(_ token: UUID) {
         connection?.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] data, _, complete, error in Task { @MainActor in
@@ -212,7 +215,7 @@ struct NearbyPeer: Identifiable {
             if let error { self.fail(error); return }
             do { if let data { for frame in try self.frameDecoder.append(data) { try self.process(frame, token: token) } } }
             catch { self.fail(error); return }
-            if complete { self.status = "连接已断开。已保存的副本可离线使用，可重新发现并连接。"; self.disconnect(); return }
+            if complete { self.status = L10n.tr("连接已断开。已保存的副本可离线使用，可重新发现并连接。"); self.disconnect(); return }
             self.receive(token)
         } }
     }
@@ -225,15 +228,15 @@ struct NearbyPeer: Identifiable {
             channel = try handshake.establish(with: remote); self.remote = remote; peerName = remote.name
             if let expected = trusts[remote.deviceID.uuidString] {
                 guard expected == remote.identityKey.base64EncodedString() else { throw InkError.authentication }
-                localAccepted = true; try send(TransferMessage(.accept)); status = "已验证记住的设备，等待对方确认。"
+                localAccepted = true; try send(TransferMessage(.accept)); status = L10n.tr("已验证记住的设备，等待对方确认。")
             } else {
-                pairingCode = channel?.pairingCode; status = "在两台设备上核对相同的 6 位码，再确认配对。"
+                pairingCode = channel?.pairingCode; status = L10n.tr("在两台设备上核对相同的 6 位码，再确认配对。")
             }
-            armTimeout(seconds: 120, note: "配对超时，连接已关闭。可重新连接。")
+            armTimeout(seconds: 120, note: L10n.tr("配对超时，连接已关闭。可重新连接。"))
         } else if type == 1 {
             guard let channel else { throw InkError.authentication }
             let message = try channel.open(Data(payload))
-            if message.kind == .reject || message.kind == .cancel { disconnect(); status = "对方取消了连接或传输，本地文稿仍保留。"; return }
+            if message.kind == .reject || message.kind == .cancel { disconnect(); status = L10n.tr("对方取消了连接或传输，本地文稿仍保留。"); return }
             if message.kind == .accept { remoteAccepted = true; updateReady(); return }
             guard ready else { throw InkError.unpaired }
             switch message.kind {
@@ -244,17 +247,17 @@ struct NearbyPeer: Identifiable {
                         let document = try await self.currentDocument?(message.kind == .requestDocument ? message.documentID : nil)
                         guard self.sessionToken == token, self.ready else { return }
                         if let document, document.trashedAt == nil { self.sendDocument(document) }
-                        else { try self.send(TransferMessage(.receipt, note: "对方没有打开可传输的文稿。")) }
+                        else { try self.send(TransferMessage(.receipt, note: L10n.tr("对方没有打开可传输的文稿。"))) }
                     } catch { self.fail(error) }
                 }
             case .document:
                 guard let document = message.document, let checksum = message.checksum, let id = message.transferID else { throw InkError.invalidDocument }
                 guard !receivedTransfers.contains(id) else { return }
-                receivedTransfers.insert(id); transferring = true; status = "正在校验并保存离线副本…"
+                receivedTransfers.insert(id); transferring = true; status = L10n.tr("正在校验并保存离线副本…")
                 Task { [weak self] in
                     guard let self, self.sessionToken == token, self.ready else { return }
                     do {
-                        let note = try await self.receiveDocument?(document, checksum) ?? "已接收"
+                        let note = try await self.receiveDocument?(document, checksum) ?? L10n.tr("已接收")
                         guard self.sessionToken == token else { return }
                         self.transferring = false; self.status = note; self.timer?.cancel()
                         try self.send(TransferMessage(.receipt, transferID: id, note: note))
@@ -267,8 +270,8 @@ struct NearbyPeer: Identifiable {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                 incomingTransfer = PreparedTransfer(manifest: checked, directory: directory); incomingFiles = []
                 totalFiles = checked.items.count; completedFiles = 0; transferring = true
-                status = "正在接收《\(checked.title)》，完整校验后保存。"
-                armTimeout(seconds: 60, note: "目录传输超时，未提交的文件已丢弃。")
+                status = L10n.tr("正在接收《\(checked.title)》，完整校验后保存。")
+                armTimeout(seconds: 60, note: L10n.tr("目录传输超时，未提交的文件已丢弃。"))
                 try send(TransferMessage(.receipt, transferID: manifest.id))
             case .transferDocument:
                 guard let transfer = incomingTransfer, let document = message.document, let checksum = message.checksum,
@@ -278,13 +281,13 @@ struct NearbyPeer: Identifiable {
                 guard checked.trashedAt == nil, checked.checksum == item.checksum, checked.content.utf8.count == item.byteCount else { throw InkError.invalidDocument }
                 try JSONEncoder().encode(checked).write(to: transfer.documentURL(document.id), options: .atomic)
                 incomingFiles.insert(document.id); completedFiles = incomingFiles.count
-                status = "已接收 \(completedFiles)/\(totalFiles) 个文件，尚未提交。"
-                armTimeout(seconds: 60, note: "目录传输超时，未提交的文件已丢弃。")
+                status = L10n.tr("已接收 \(completedFiles)/\(totalFiles) 个文件，尚未提交。")
+                armTimeout(seconds: 60, note: L10n.tr("目录传输超时，未提交的文件已丢弃。"))
                 try send(TransferMessage(.receipt, transferID: receipt))
             case .commitTransfer:
                 guard let transfer = incomingTransfer, incomingFiles == Set(transfer.manifest.items.map(\.documentID)), let id = message.transferID, let receiveTransfer else { throw InkError.invalidDocument }
-                status = "正在保存已校验的文件…"
-                armTimeout(seconds: 120, note: "保存确认超时。请重新连接检查接收端结果。")
+                status = L10n.tr("正在保存已校验的文件…")
+                armTimeout(seconds: 120, note: L10n.tr("保存确认超时。请重新连接检查接收端结果。"))
                 commitTask = Task { [weak self] in
                     guard let self else { return }
                     do {
@@ -302,7 +305,7 @@ struct NearbyPeer: Identifiable {
                     if let note = message.note { status = note }
                     waiter.1.resume(); return
                 }
-                if message.transferID == transferID || message.transferID == nil { transferring = false; timer?.cancel(); status = message.note ?? "对方已保存"; transferID = nil }
+                if message.transferID == transferID || message.transferID == nil { transferring = false; timer?.cancel(); status = message.note ?? L10n.tr("对方已保存"); transferID = nil }
             default: break
             }
         } else { throw InkError.invalidFrame }
@@ -323,14 +326,14 @@ struct NearbyPeer: Identifiable {
     }
     private func updateReady() {
         ready = localAccepted && remoteAccepted
-        if ready { timer?.cancel(); pairingCode = nil; awaitingPeer = false; status = "安全连接已建立。请选择继续阅读或手动同步文件。" }
+        if ready { timer?.cancel(); pairingCode = nil; awaitingPeer = false; status = L10n.tr("安全连接已建立。请选择继续阅读或手动同步文件。") }
     }
     func requestCurrent(documentID: UUID? = nil) {
         guard ready else { return }
         do {
-            transferring = true; status = "正在请求对方文稿…"
+            transferring = true; status = L10n.tr("正在请求对方文稿…")
             try send(TransferMessage(documentID == nil ? .requestCurrent : .requestDocument, documentID: documentID))
-            armTimeout(seconds: 45, note: "接收超时。源设备可能休眠或离线，请重试。")
+            armTimeout(seconds: 45, note: L10n.tr("接收超时。源设备可能休眠或离线，请重试。"))
         } catch { fail(error) }
     }
     /// 只有确认同步之后才调用。每个文件等到暂存确认再发送下一个，最后提交整个清单。
@@ -344,11 +347,11 @@ struct NearbyPeer: Identifiable {
             try Task.checkCancellation()
             guard sessionToken == token, ready else { throw CancellationError() }
             let document = try await Task.detached { try transfer.document(item) }.value
-            status = "正在同步 \(completedFiles + 1)/\(totalFiles)：\(item.relativePath)"
+            status = L10n.tr("正在同步 \(completedFiles + 1)/\(totalFiles)：\(item.relativePath)")
             try await sendAndWait(TransferMessage(.transferDocument, document: document, transferID: UUID()))
             completedFiles += 1
         }
-        status = "文件已发送，等待对方保存…"
+        status = L10n.tr("文件已发送，等待对方保存…")
         try await sendAndWait(TransferMessage(.commitTransfer, transferID: UUID()), seconds: 120)
     }
     private func sendAndWait(_ message: TransferMessage, seconds: UInt64 = 60) async throws {
@@ -357,16 +360,16 @@ struct NearbyPeer: Identifiable {
             receiptWaiter = (id, continuation)
             do {
                 try send(message)
-                armTimeout(seconds: seconds, note: "同步超时，请重新连接检查。未提交的文件会丢弃，冲突版本会保留。")
+                armTimeout(seconds: seconds, note: L10n.tr("同步超时，请重新连接检查。未提交的文件会丢弃，冲突版本会保留。"))
             } catch { receiptWaiter = nil; continuation.resume(throwing: error) }
         }
     }
     private func sendDocument(_ book: Manuscript) {
         guard ready else { return }
         do {
-            let id = UUID(); transferID = id; transferring = true; status = "正在加密发送 \(book.title)…"
+            let id = UUID(); transferID = id; transferring = true; status = L10n.tr("正在加密发送 \(book.title)…")
             try send(TransferMessage(.document, document: book, transferID: id))
-            armTimeout(seconds: 45, note: "未收到保存确认。副本可能已保存，请重连同步确认，不会直接覆盖冲突版本。")
+            armTimeout(seconds: 45, note: L10n.tr("未收到保存确认。副本可能已保存，请重连同步确认，不会直接覆盖冲突版本。"))
         } catch { fail(error) }
     }
     private func send(_ message: TransferMessage) throws {
@@ -388,12 +391,12 @@ struct NearbyPeer: Identifiable {
             self.disconnect(); self.status = note
         }
     }
-    func cancel() { try? send(TransferMessage(.cancel)); disconnect(); status = "已取消。已有离线副本和原文件均保留。" }
+    func cancel() { try? send(TransferMessage(.cancel)); disconnect(); status = L10n.tr("已取消。已有离线副本和原文件均保留。") }
     func forgetAll() {
         trusts = [:]; names = [:]; trustedNames = []
         preferences.removeObject(forKey: "trustedPeers"); preferences.removeObject(forKey: "trustedNames")
         identity = Curve25519.Signing.PrivateKey(); identityLoaded = false
-        disconnect(); status = "已撤销设备信任。下次连接需重新核对配对码。"
+        disconnect(); status = L10n.tr("已撤销设备信任。下次连接需重新核对配对码。")
     }
     func disconnect() {
         sessionToken = UUID(); timer?.cancel(); timer = nil
@@ -404,7 +407,7 @@ struct NearbyPeer: Identifiable {
         channel = nil; handshake = nil; remote = nil; ready = false; pairingCode = nil
         localAccepted = false; remoteAccepted = false; awaitingPeer = false; transferring = false; transferID = nil
     }
-    private func fail(_ error: Error) { self.error = error.localizedDescription; disconnect(); status = "连接失败，可重试。书库未向未配对设备开放。" }
+    private func fail(_ error: Error) { self.error = error.localizedDescription; disconnect(); status = L10n.tr("连接失败，可重试。书库未向未配对设备开放。") }
 }
 
 #if DEBUG && targetEnvironment(simulator)

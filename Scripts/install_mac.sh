@@ -45,7 +45,7 @@ if apps.contains(where: { !$0.isTerminated }) {
 }
 SWIFT
 stage=$(mktemp -d '/Applications/.InkEngine-update.XXXXXX')
-backup="$PWD/build/MacInstallRollback"
+backup="$PWD/build.noindex/MacInstallRollback"
 mkdir -p "$backup"
 old_app="$backup/Ink Engine.app"
 if [[ -e "$old_app" ]]; then
@@ -75,3 +75,4 @@ if [[ -d "$old_app" ]]; then
     rm -rf "$old_app"
 fi
 print "Installed and verified: $target_app"
+python3 Scripts/mac_app_registry.py --remove-built-apps

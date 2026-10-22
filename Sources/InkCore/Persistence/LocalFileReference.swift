@@ -57,7 +57,7 @@ struct LocalFileReference: Codable, Sendable {
         NSFileCoordinator().coordinate(writingItemAt: url, options: .forReplacing, error: &coordinationError) { target in
             do {
                 guard Self.digest(try Data(contentsOf: target)) == diskDigest else {
-                    throw NSError(domain: "InkEngine.LocalFile", code: 1, userInfo: [NSLocalizedDescriptionKey: "原文件已被其他应用修改。请先另存当前修改，再重新打开原文件。"])
+                    throw NSError(domain: "InkEngine.LocalFile", code: 1, userInfo: [NSLocalizedDescriptionKey: L10n.tr("原文件已被其他应用修改。请先另存当前修改，再重新打开原文件。")])
                 }
                 try output.write(to: target, options: .atomic)
             } catch { writeError = error }
