@@ -21,7 +21,7 @@ print 'Building macOS Release (arm64); full log: build/LocalDistribution/build.l
 if ! xcodebuild -project InkEngine.xcodeproj -scheme InkEngine \
     -configuration Release -destination 'generic/platform=macOS' \
     -derivedDataPath "$derived" ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
-    CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$MAC_SIGNING_IDENTITY" CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO DEVELOPMENT_TEAM= \
+    CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$MAC_SIGNING_IDENTITY" CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO OTHER_CODE_SIGN_FLAGS=--timestamp DEVELOPMENT_TEAM= \
     PROVISIONING_PROFILE_SPECIFIER= build > "$work/build.log" 2>&1; then
     tail -n 80 "$work/build.log"
     exit 1
