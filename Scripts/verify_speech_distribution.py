@@ -7,10 +7,30 @@ import re
 import subprocess
 
 
+def version(text):
+    parts = tuple(int(part) for part in text.split('.'))
+    return parts + (0,) * (3 - len(parts))
+
+
 def verify(app):
     mac = app / 'Contents/Info.plist'
     metadata = plistlib.loads((mac if mac.exists() else app / 'Info.plist').read_bytes())
     executable = (app / 'Contents/MacOS' if mac.exists() else app) / metadata['CFBundleExecutable']
+    if not mac.exists():
+        # App Store processing rejects a framework whose plist claims support
+        # below the minimum OS encoded in its generated Mach-O wrapper (90208).
+        for framework in (app / 'Frameworks').glob('*.framework'):
+            info = plistlib.loads((framework / 'Info.plist').read_bytes())
+            binary = framework / info['CFBundleExecutable']
+            commands = subprocess.check_output(['xcrun', 'vtool', '-show-build', str(binary)], text=True)
+            minimums = re.findall(r'^\s*minos\s+(\d+(?:\.\d+)+)', commands, re.M)
+            declared = info.get('MinimumOSVersion')
+            if not declared or not minimums:
+                raise ValueError('Missing framework deployment metadata: ' + framework.name)
+            if any(version(value) > version(declared) for value in minimums):
+                raise ValueError('Framework minimum OS is below its binary target: ' + framework.name)
+            if version(declared) > version(metadata['MinimumOSVersion']):
+                raise ValueError('Framework requires a newer OS than the app: ' + framework.name)
     forbidden = re.compile(r'(?:^|/)(?:Matcha|Piper|espeak-ng-data|Sherpa[^/]*)(?:/|$)', re.I)
     paths = [str(p.relative_to(app)) for p in app.rglob('*') if forbidden.search(str(p.relative_to(app)))]
     if paths:
