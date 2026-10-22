@@ -1,6 +1,11 @@
-Offline Chinese narration: ZipVoice Serena and Dylan, using Core ML.
-ONNX Runtime 1.28.1: MIT (Qwen support on Mac).
-https://github.com/microsoft/onnxruntime/tree/v1.28.1
-Model and vocoder notices: ZipVoice/LICENSE and ZipVoice/VOCOS-LICENSE.
-Matcha, Sherpa, Piper and eSpeak are not included in this application build.
-The narration engine works locally and transmits no text or audio.
+Ink Engine offline speech distribution notices
+
+The current app build includes:
+- ZipVoice-Distill model: Apache-2.0 (see ZipVoice/LICENSE).
+- Vocos 24 kHz vocoder: MIT (see ZipVoice/VOCOS-LICENSE).
+- ONNX Runtime 1.28.1 used by the Mac Qwen runtime: MIT and upstream third-party notices (see Vendor/SpeechRuntime/Licenses in the source distribution and the in-app Open Source Licenses page).
+- Qwen3-TTS CustomVoice reference/model materials: Apache-2.0 (see ZipVoice/QWEN-REFERENCE-LICENSE; the Mac bundle also includes SpeechMac/Qwen/LICENSE-model).
+- The adapted speech-swift Qwen runtime: Apache-2.0 (the Mac bundle includes SpeechMac/Qwen/LICENSE-runtime).
+- Core ML conversion attribution for the ZipVoice adapter: Apache-2.0 (see the Mobius license in the source distribution and the in-app Open Source Licenses page).
+
+Matcha, Sherpa, Piper and eSpeak are not included in this application build. Built-in narration runs locally; it does not upload document text or generated audio to a speech server. Nearby-device sync is a separate feature and is described in the Privacy Policy.

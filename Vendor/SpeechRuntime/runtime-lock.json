@@ -74,7 +74,7 @@
     "Vendor/SpeechRuntime/Frameworks/ORTMac.xcframework/macos-arm64_x86_64/onnxruntime.framework/Versions/A/Headers/onnxruntime_session_options_config_keys.h": "f3a80fcec7fa9e38de3191fc48714231892bc9c5dc8a06adecebf946a1937a29",
     "Vendor/SpeechRuntime/Frameworks/ORTMac.xcframework/macos-arm64_x86_64/onnxruntime.framework/Versions/A/Resources/Info.plist": "57449044dfbb52bbdf74f705b676d3286d2b1b9aa86076b8b06f20b1fe8a3ffb",
     "Vendor/SpeechRuntime/Frameworks/ORTMac.xcframework/macos-arm64_x86_64/onnxruntime.framework/Versions/A/onnxruntime": "3b62284b300622c758e2dad05b276ee71b452effe6d065bb58e9c787f6dc960b",
-    "App/Resources/Speech/THIRD-PARTY-NOTICES.txt": "ae21c1a80277087d7b4254e9142ade0fbb08d0f6128e0ae7bbf08cc999c82c43"
+    "App/Resources/Speech/THIRD-PARTY-NOTICES.txt": "ad5b2c6e9ed3793e26c31208b2e03cc6b6c936063f5198219af85132b886b224"
   },
   "adjustments": []
 }

@@ -171,6 +171,10 @@
         {
           "path": "Scripts/NativeSpeech/SPEECH-SWIFT-LICENSE",
           "sha256": "8b86cbde30daef6bfac0780dee1649be3b2de2abf4ecdefd5b7099df212c5a1d"
+        },
+        {
+          "path": "App/Resources/SpeechMac/Qwen/LICENSE-runtime",
+          "sha256": "8b86cbde30daef6bfac0780dee1649be3b2de2abf4ecdefd5b7099df212c5a1d"
         }
       ],
       "modifications": "Local model loading, actor adapter, Core ML integration and cancellation; see NATIVE-SPEECH-SOURCES.json."

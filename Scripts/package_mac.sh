@@ -4,6 +4,7 @@ set -euo pipefail
 cd "${0:A:h}/.."
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 export PATH="$DEVELOPER_DIR/usr/bin:$PATH"
+MAC_SIGNING_IDENTITY="${MAC_SIGNING_IDENTITY:--}"
 
 work="$PWD/build.noindex/LocalDistribution"
 derived="$work/DerivedData"
@@ -20,7 +21,7 @@ print 'Building macOS Release (arm64); full log: build/LocalDistribution/build.l
 if ! xcodebuild -project InkEngine.xcodeproj -scheme InkEngine \
     -configuration Release -destination 'generic/platform=macOS' \
     -derivedDataPath "$derived" ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
-    CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO DEVELOPMENT_TEAM= \
+    CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$MAC_SIGNING_IDENTITY" CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO DEVELOPMENT_TEAM= \
     PROVISIONING_PROFILE_SPECIFIER= build > "$work/build.log" 2>&1; then
     tail -n 80 "$work/build.log"
     exit 1
@@ -81,9 +82,9 @@ ZipVoice Serena 女声与 Dylan 男声及运行库已内置。
 Mac 额外提供 Qwen Serena 测试模型，初始朗读语速 1.25 倍；合成仍低于实时，适合分段试听。
 以上模型均可本地离线合成；系统朗读使用已安装的音色。
 
-本包使用本地临时签名，未经过 Apple 公证，也未上传 App Store。
-经网络下载或传给另一台 Mac 后，系统可能提示开发者无法验证。
-确认来源后，可在“系统设置 → 隐私与安全性”中点“仍要打开”。
+签名身份：${MAC_SIGNING_IDENTITY}
+本包是否经过 Apple 公证取决于后续公证步骤；本脚本不会自动上传 App Store。
+如果使用临时签名，系统可能提示开发者无法验证；确认来源后，可在“系统设置 → 隐私与安全性”中点“仍要打开”。
 Apple 官方说明：https://support.apple.com/zh-cn/102445
 EOF
 
