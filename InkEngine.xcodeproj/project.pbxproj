@@ -1053,7 +1053,7 @@
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=iphonesimulator*]" = SpeechMac;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Config/InkEngine-Info.plist";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INK_APP_DISPLAY_NAME = "墨语引擎";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
@@ -1089,7 +1089,7 @@
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=iphonesimulator*]" = SpeechMac;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Config/InkEngine-Info.plist";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INK_APP_DISPLAY_NAME = "墨语引擎";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;

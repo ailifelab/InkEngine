@@ -102,6 +102,7 @@ for platform in ['Universal']:
     settings['ARCHS[sdk=macosx*]'] = 'arm64'
     settings['CODE_SIGN_IDENTITY[sdk=macosx*]'] = '-'
     settings['CODE_SIGN_ENTITLEMENTS[sdk=macosx*]'] = 'Config/Mac.entitlements'
+    settings['INFOPLIST_KEY_LSApplicationCategoryType'] = 'public.app-category.productivity'
     settings['ENABLE_HARDENED_RUNTIME[sdk=macosx*]'] = 'YES'
     settings['DEVELOPMENT_TEAM'] = ''
     settings['CODE_SIGN_IDENTITY[sdk=iphoneos*]'] = 'Apple Development'
