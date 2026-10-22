@@ -1,14 +1,14 @@
 # 安装、签名与离线使用
 
-当前 macOS、iPhone、iPad 本地交付版本统一为 **0.3.2（8）**。新增简体中文、English、繁體中文与跟随系统；从“更多 → 语言”或设置切换，首页不单独占用语言按钮行。日常只打开 `/Applications/Ink Engine.app`；本机安装包保存在 `Releases/0.3.2/`。公开下载入口仍为下方的旧版，未自动发布本次本地更新。
+当前 macOS、iPhone、iPad 本地交付版本统一为 **0.3.2（8）**。新增简体中文、English、繁體中文与跟随系统；从“更多 → 语言”或设置切换，首页不单独占用语言按钮行。日常只打开 `/Applications/Ink Engine.app`；本机安装包保存在 `Releases/0.3.2/`。公开 macOS 下载入口为下方 GitHub Release。
 
 ## Mac
 
-下载入口：[GitHub Releases 0.3.1](https://github.com/ailifelab/InkEngine/releases/tag/v0.3.1)，包含 DMG 和 SHA-256 校验文件。
+下载入口：[GitHub Releases 0.3.2](https://github.com/ailifelab/InkEngine/releases/tag/v0.3.2)，包含 DMG 和 SHA-256 校验文件。
 
 本次本地正式包：`InkEngine-0.3.2-macOS-arm64-local.dmg`。macOS 已更新到 0.3.2（8），保留原书库、设置与阅读位置；用户要求删除的备份和旧构建缓存已清理。Apple 芯片 Mac（M1 或更新）、macOS 26 或更新。打开 DMG，将 `Ink Engine.app` 拖入 Applications；更新时先退出旧应用再替换。日常只使用 `/Applications/Ink Engine.app`，保留原书库和偏好，不需要 Xcode。
 
-此本地安装包使用临时签名，未进行 Apple 公证。经网络下载或转给另一台 Mac 后，可能需要在系统设置的“隐私与安全性”允许打开。不能宣称已公证，也不能将开发者账号证书装进公开源码。面向其他用户的正式分发需另行准备 Developer ID 签名、公证和依赖许可证合规。
+此安装包已使用 Developer ID 签名并通过 Apple 公证，公证票据已附加；包内应用通过 Gatekeeper 检查。文件名中的 `local` 为历史命名。GitHub 分发与 App Store 上架分别进行，不能将开发者私钥或账号凭据放入公开源码。
 
 当前源码已移除 Matcha，保留系统语音与 ZipVoice；Mac 的 Qwen 测试模型按平台配置提供。均本地合成。Qwen 初始朗读语速 1.25 倍，合成吞吐仍慢于实时；准备和分段之间可能等待。
 

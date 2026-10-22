@@ -62,7 +62,7 @@ Mac/iPad 改为**手动保存＋自动暂存恢复草稿**：切换标签、切�
 
 ## 获取应用
 
-**Mac 安装包：** [下载 0.3.1 DMG 与 SHA-256 校验文件](https://github.com/ailifelab/InkEngine/releases/tag/v0.3.1)。支持 Apple 芯片 Mac、macOS 26 或更新，已内置离线声音。此包使用 ad-hoc 临时签名，尚未经过 Apple 公证；具体安装方式见发行说明。
+**Mac 安装包：** [下载 0.3.2 DMG 与 SHA-256 校验文件](https://github.com/ailifelab/InkEngine/releases/tag/v0.3.2)。支持 Apple 芯片 Mac、macOS 26 或更新，已内置离线声音。此包已使用 Developer ID 签名并通过 Apple 公证；具体安装方式见发行说明。
 
 当前源码已经开源，**尚未在 App Store 上架，也没有公开的通用签名 IPA 下载**。自己的 iPhone / iPad 安装需要自己的开发者签名和有效描述文件；作者的证书不会随源码提供。
 
