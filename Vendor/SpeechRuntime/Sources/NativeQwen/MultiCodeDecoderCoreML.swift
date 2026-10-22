@@ -55,8 +55,9 @@ final class MultiCodeDecoderCoreML {
 
         // Position 1: feed CodeEmbedder(CB0) → read lm_head[0] → CB1
         let cb0Embed = ensureNCHW(try codeEmbedder.embed(Int(cb0Token)), channels: inputWidth)
-        var (logits, kc1, vc1) = try step(embed: cb0Embed, position: 1,
-                                          keyCache: keyCache, valueCache: valueCache, state: mlState)
+        let (firstLogits, kc1, vc1) = try step(embed: cb0Embed, position: 1,
+                                               keyCache: keyCache, valueCache: valueCache, state: mlState)
+        var logits = firstLogits
         if !isStateful { keyCache = kc1; valueCache = vc1 }
 
         // Sample CB1 from lm_head[0]
