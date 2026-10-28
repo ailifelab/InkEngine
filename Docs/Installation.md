@@ -1,26 +1,16 @@
-# 安装、签名与离线使用
+# Installation and signing
 
-当前 macOS、iPhone、iPad 本地交付版本统一为 **0.3.2（8）**。新增简体中文、English、繁體中文与跟随系统；从“更多 → 语言”或设置切换，首页不单独占用语言按钮行。日常只打开 `/Applications/Ink Engine.app`；本机安装包保存在 `Releases/0.3.2/`。公开 macOS 下载入口为下方 GitHub Release。
+Source version: **0.3.3 (9)**. Published installers and checksums are listed on [GitHub Releases](https://github.com/ailifelab/InkEngine/releases).
 
 ## Mac
 
-下载入口：[GitHub Releases 0.3.2](https://github.com/ailifelab/InkEngine/releases/tag/v0.3.2)，包含 DMG 和 SHA-256 校验文件。
-
-本次本地正式包：`InkEngine-0.3.2-macOS-arm64-local.dmg`。macOS 已更新到 0.3.2（8），保留原书库、设置与阅读位置；用户要求删除的备份和旧构建缓存已清理。Apple 芯片 Mac（M1 或更新）、macOS 26 或更新。打开 DMG，将 `Ink Engine.app` 拖入 Applications；更新时先退出旧应用再替换。日常只使用 `/Applications/Ink Engine.app`，保留原书库和偏好，不需要 Xcode。
-
-此安装包已使用 Developer ID 签名并通过 Apple 公证，公证票据已附加；包内应用通过 Gatekeeper 检查。文件名中的 `local` 为历史命名。GitHub 分发与 App Store 上架分别进行，不能将开发者私钥或账号凭据放入公开源码。
-
-当前源码已移除 Matcha，保留系统语音与 ZipVoice；Mac 的 Qwen 测试模型按平台配置提供。均本地合成。Qwen 初始朗读语速 1.25 倍，合成吞吐仍慢于实时；准备和分段之间可能等待。
+Requires Apple silicon and macOS 26 or later. Quit the previous app, open the DMG and drag Ink Engine.app to Applications. Application data and preferences remain in the existing app container. Check the SHA-256 before installation. Developer ID signing and notarization status must be checked for each release independently.
 
 ## iPhone / iPad
 
-本次安装为优化 Release 0.3.2（8），使用原正式 Bundle ID。先备份文稿、书库与偏好，卸载旧版及测试应用后重装，再恢复用户数据，清除生成缓存。两台设备各保留一份正式“墨语引擎”。不通过 TestFlight，不存在 TestFlight 的 90 天期限。
+Requires iOS / iPadOS 26 or later. The existing packaging workflow uses development signing: installation is restricted to devices already included in the provisioning profile and requires Developer Mode. It is not a universal installer. First launch may require online signature verification; certificates can expire or be revoked. Local documents and bundled voices work offline.
 
-本次证书至 **2027-10-08 15:09:41 UTC（北京时间 23:09:41）**，描述文件至同日 15:19:46 UTC，实际取较早日期。用户确认沿用当前签名，不继续续签。建议 2027-09-08 前重新签名并覆盖安装；撤销证书或苹果账号状态变化可能导致提前失效。不能把“一年期证书”理解为任何时间安装都能再用满一年。
-
-开发签名设备需开启开发者模式。苹果可能要求安装后首次启动联网验证；先联网正常打开，再离线使用内置模型和本地文稿。无需将正文发送给语音服务。苹果验证连接失败需排查系统签名验证，不能把它误诊为应用的语音联网失败。
-
-官方规则：[描述文件和首次签名验证](https://developer.apple.com/help/account/provisioning-profiles/provisioning-profile-updates)、[签名和描述文件](https://developer.apple.com/documentation/technotes/tn3125-inside-code-signing-provisioning-profiles)。
+Never publish provisioning profiles, signing reports or device lists. An explicitly unsigned IPA requires the recipient to sign the application and embedded code with their own valid Apple credentials and a matching provisioning profile before installation. Simulator apps and App Store exports are not general sideloading packages.
 
 ## 本机打包配置
 
@@ -30,8 +20,8 @@
 cp Config/IPA.json Config/IPA.local.json
 # 用自己的团队填写本机配置；在 Xcode 中配置自己的账号与设备。
 zsh Scripts/package_ios.sh
-python3 Scripts/ipa.py inspect Releases/0.3.2/InkEngine-0.3.2-iOS-Release-development.ipa
-python3 Scripts/ipa.py install Releases/0.3.2/InkEngine-0.3.2-iOS-Release-development.ipa --device '自己的设备名'
+python3 Scripts/ipa.py inspect Releases/0.3.3/InkEngine-0.3.3-iOS-Release-development.ipa
+python3 Scripts/ipa.py install Releases/0.3.3/InkEngine-0.3.3-iOS-Release-development.ipa --device '自己的设备名'
 ```
 
 普通打包沿用本机已有签名。`--refresh-signing` 允许 Xcode 联网更新签名，`--renew` 还要求实际到期时间延长；若没有延长，会保留旧 IPA 并报错。两者均不会替你接受开发协议，也不会自动部署到所有设备。

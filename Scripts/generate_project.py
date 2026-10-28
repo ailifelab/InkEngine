@@ -95,7 +95,7 @@ for platform in ['Universal']:
     legal_build = obj(name+'LegalBuild', 'isa = PBXBuildFile; fileRef = '+legal_resource+';')
     localized_builds = [obj(name+'LocalizedBuild'+ref, 'isa = PBXBuildFile; fileRef = '+ref+';') for ref in localized_resources]
     resource_phase = obj(name+'Resources','isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = '+array([asset_build,model_build,mac_model_build,privacy_build,legal_build]+localized_builds)+'; runOnlyForDeploymentPostprocessing = 0;')
-    settings = dict(INK_APP_DISPLAY_NAME='墨语引擎', PRODUCT_NAME='Ink Engine', PRODUCT_BUNDLE_IDENTIFIER='org.ailifelab.InkEngine', INFOPLIST_FILE='Config/InkEngine-Info.plist', SWIFT_VERSION='5.0', CODE_SIGN_STYLE='Automatic', GENERATE_INFOPLIST_FILE='NO', MARKETING_VERSION='0.3.2', CURRENT_PROJECT_VERSION='8', ENABLE_USER_SCRIPT_SANDBOXING='YES', ASSETCATALOG_COMPILER_APPICON_NAME='AppIcon')
+    settings = dict(INK_APP_DISPLAY_NAME='墨语引擎', PRODUCT_NAME='Ink Engine', PRODUCT_BUNDLE_IDENTIFIER='org.ailifelab.InkEngine', INFOPLIST_FILE='Config/InkEngine-Info.plist', SWIFT_VERSION='5.0', CODE_SIGN_STYLE='Automatic', GENERATE_INFOPLIST_FILE='NO', MARKETING_VERSION='0.3.3', CURRENT_PROJECT_VERSION='9', ENABLE_USER_SCRIPT_SANDBOXING='YES', ASSETCATALOG_COMPILER_APPICON_NAME='AppIcon')
     settings.update(SDKROOT='auto', SUPPORTED_PLATFORMS='macosx iphoneos iphonesimulator', MACOSX_DEPLOYMENT_TARGET='26.0', IPHONEOS_DEPLOYMENT_TARGET='26.0', TARGETED_DEVICE_FAMILY='1,2', SUPPORTS_MACCATALYST='NO')
     settings['EXCLUDED_SOURCE_FILE_NAMES[sdk=iphoneos*]'] = 'SpeechMac'
     settings['EXCLUDED_SOURCE_FILE_NAMES[sdk=iphonesimulator*]'] = 'SpeechMac'

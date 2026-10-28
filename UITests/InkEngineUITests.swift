@@ -3136,6 +3136,37 @@ final class InkEngineUITests: XCTestCase {
         #endif
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS '刚写好的中文正文'")).firstMatch.waitForExistence(timeout: 15))
     }
+    #if os(macOS)
+    func testOpenEditorImmediatelyAppliesThemeChanges() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--reset-ui-testing", "--editor-history-ui-testing"]
+        launch(app)
+        openBook("编辑功能测试", app: app)
+        app.buttons["modeToggle"].press()
+        let editor = app.textViews["manuscriptEditor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 10))
+        let original = editor.value as? String
+        // 检查原生文本框实际像素，不能只检查主题菜单或外层 SwiftUI 的状态。
+        let themes: [(String, [CGFloat])] = [
+            ("dark", [0.055, 0.075, 0.095]), ("warm", [0.95, 0.90, 0.78]),
+            ("green", [0.85, 0.91, 0.84]), ("white", [0.99, 0.987, 0.975])
+        ]
+        for (theme, expected) in themes {
+            themeOption(theme, app: app).press()
+            editor.press() // 关闭外观浮层，下一轮重新打开同一个主题面板。
+            let applied = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                guard let bitmap = NSBitmapImageRep(data: editor.screenshot().pngRepresentation),
+                      let color = bitmap.colorAt(x: bitmap.pixelsWide * 4 / 5, y: bitmap.pixelsHigh * 4 / 5)?.usingColorSpace(.sRGB) else { return false }
+                // 屏幕截图经过显示器色彩转换，保留容差但仍区分四种纸面。
+                return zip([color.redComponent, color.greenComponent, color.blueComponent], expected)
+                    .allSatisfy { abs($0 - $1) < 0.065 }
+            }, object: editor)
+            XCTAssertEqual(XCTWaiter.wait(for: [applied], timeout: 10), .completed, "Editor paper must immediately use \(theme)")
+            XCTAssertEqual(editor.value as? String, original)
+        }
+    }
+    #endif
+
     func testEditorSearchReplaceSharedThemesAndReadonly() throws {
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing", "--reset-ui-testing", "--editor-history-ui-testing"]; launch(app)
         XCTAssertTrue(app.buttons["book-编辑功能测试"].waitForExistence(timeout: 15)); openBook("编辑功能测试", app: app)

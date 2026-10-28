@@ -406,6 +406,8 @@ struct NativeEditor: NSViewRepresentable {
         host.ruler.setAccessibilityLabel(L10n.tr("列标尺"))
         let c = context.coordinator; let previous = c.parent; c.parent = self
         let editor = host.editor as! FocusTextView
+        // 原生编辑器会跨主题和标签页复用，纸面、正文与标尺必须同步刷新。
+        host.applyTheme(theme)
         guard !editor.hasMarkedText() else { return }
         editor.isEditable = !readOnly; editor.onFocus = onFocus
         editor.columnMode = columnMode
