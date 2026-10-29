@@ -17,16 +17,10 @@ import UIKit
     private var pronunciationVersion = ""
     private var systemFallback = false
     private var lastSynthesisFailure = ""
-    private static var supportedRenderers: Set<String> {
-        #if os(macOS) && arch(arm64)
-        ["system", "zipvoice", "zipvoice-male", "qwen"]
-        #else
-        ["system", "zipvoice", "zipvoice-male"]
-        #endif
-    }
     @Published var rendererMode = "system" {
         didSet {
-            if !Self.supportedRenderers.contains(rendererMode) { rendererMode = "system" }
+            let restored = SpeechRendererSelection.restored(rendererMode, zipVoiceReady: zipVoiceReady, maleReady: zipVoiceMaleReady)
+            if rendererMode != restored { rendererMode = restored; return }
             preferences.set(rendererMode, forKey: "speechRenderer")
             if rendererMode == "zipvoice" || rendererMode == "zipvoice-male" {
                 preferences.set(rendererMode == "zipvoice-male" ? "dylan" : "serena", forKey: "zipVoiceReference")
@@ -38,9 +32,6 @@ import UIKit
             let selected = rendererMode
             Task {
                 if !["zipvoice", "zipvoice-male"].contains(selected) { await zipSynthesizer.unload() }
-                #if os(macOS)
-                if selected != "qwen" { await qwenSynthesizer.unload() }
-                #endif
             }
         }
     }
@@ -84,7 +75,7 @@ import UIKit
         didSet {
             if modelRatesReady && !restoringModelRate {
                 preferences.set(rate, forKey: modelRateKey)
-                if selectedModel != "qwen" { preferences.set(rate, forKey: "speechSpeed") }
+                preferences.set(rate, forKey: "speechSpeed")
             }
             updatePlaybackRate(); nowPlaying()
         }
@@ -97,7 +88,6 @@ import UIKit
         defer { restoringModelRate = false }
         let saved: Float
         if preferences.object(forKey: modelRateKey) != nil { saved = preferences.float(forKey: modelRateKey) }
-        else if selectedModel == "qwen" { saved = 1.25 }
         else { saved = preferences.object(forKey: "speechSpeed") == nil ? 1 : preferences.float(forKey: "speechSpeed") }
         rate = min(2, max(0.5, saved))
         preferences.set(rate, forKey: modelRateKey)
@@ -121,9 +111,6 @@ import UIKit
     var auditioning: Bool { previewText != nil }
     private let preferences: UserDefaults
     private let zipSynthesizer = ZipVoiceSynthesizer()
-    #if os(macOS)
-    private let qwenSynthesizer = QwenSynthesizer()
-    #endif
     private var modelReleaseTask: Task<Void, Never>?
     @Published private var idleModelReleases = 0
     private func releaseModelsWhenIdle() {
@@ -136,9 +123,6 @@ import UIKit
             guard let self, !Task.isCancelled, self.ledger.generation == generation, !self.playing || self.paused else { return }
             guard !Task.isCancelled, self.ledger.generation == generation, !self.playing || self.paused else { return }
             await self.zipSynthesizer.unload()
-            #if os(macOS)
-            await self.qwenSynthesizer.unload()
-            #endif
             self.idleModelReleases += 1
         }
     }
@@ -223,7 +207,6 @@ import UIKit
         switch renderer {
         case "zipvoice": return "zipvoice-distill-coreml-4"
         case "zipvoice-male": return "zipvoice-distill-coreml-4-dylan"
-        case "qwen": return "qwen-06b-coreml-serena"
         default: return systemVoiceID
         }
     }
@@ -232,7 +215,6 @@ import UIKit
         switch voice {
         case "zipvoice-distill-coreml-4": model = "zipvoice-coreml-fp16-cpu-1024-4-qwenref352-pcm3"
         case "zipvoice-distill-coreml-4-dylan": model = "zipvoice-coreml-fp16-cpu-1024-4-dylan-natural-ref352-pcm2"
-        case "qwen-06b-coreml-serena": model = "qwen-customvoice-coreml-w8-gpu-cpusd-cd32-mcd32-512-256-serena-pcm2"
         default: model = "apple-mandarin-pcm1"
         }
         return model + "-pronunciation-" + pronunciationVersion + "-" + SpeechInput.cacheVersion
@@ -245,23 +227,19 @@ import UIKit
     private var preparationTask: UIBackgroundTaskIdentifier = .invalid
     private var commandTargets: [(MPRemoteCommand, Any)] = []
     #endif
-    private var directory: URL? { Bundle.main.url(forResource: "Speech", withExtension: nil) }
-    private var qwenDirectory: URL? { Bundle.main.url(forResource: "SpeechMac", withExtension: nil)?.appendingPathComponent("Qwen") }
+    private var directory: URL? {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing"), ProcessInfo.processInfo.arguments.contains("--missing-speech-ui-testing") { return nil }
+        #endif
+        return Bundle.main.url(forResource: "Speech", withExtension: nil)
+    }
     var voiceDescription: String {
         if !usesSystem && rendererMode == "zipvoice-male" { return L10n.tr("ZipVoice Dylan · 中文男声 · 本地离线") }
         if !usesSystem && rendererMode == "zipvoice" { return L10n.tr("ZipVoice Serena · 中文女声 · 本地离线") }
-        if !usesSystem && rendererMode == "qwen" { return L10n.tr("Qwen Serena · 自然中文女声 · 本地离线") }
         return L10n.tr("系统普通话 · \(systemVoices.first(where: { $0.identifier == systemVoiceID })?.name ?? L10n.tr("普通话")) · 本地离线")
     }
     var zipVoiceReady: Bool { nativeModelsReady(at: directory?.appendingPathComponent("ZipVoice"), names: ["TextEncoder", "FmDecoder", "Vocos"]) }
     var zipVoiceMaleReady: Bool { zipVoiceReady && directory.map { FileManager.default.fileExists(atPath: $0.appendingPathComponent("ZipVoice/reference-dylan.json").path) } == true }
-    var qwenReady: Bool {
-        #if os(macOS) && arch(arm64)
-        return nativeModelsReady(at: qwenDirectory, names: ["TextProjector", "CodeEmbedder", "MultiCodeEmbedder", "CodeDecoder", "MultiCodeDecoder", "SpeechDecoder"])
-        #else
-        return false
-        #endif
-    }
     private func nativeModelsReady(at path: URL?, names: [String]) -> Bool {
         guard let path else { return false }
         return names.allSatisfy { FileManager.default.fileExists(atPath: path.appendingPathComponent($0 + ".mlmodelc").path) }
@@ -270,7 +248,6 @@ import UIKit
         if usesSystem { return !systemVoiceID.isEmpty }
         if rendererMode == "zipvoice" { return zipVoiceReady }
         if rendererMode == "zipvoice-male" { return zipVoiceMaleReady }
-        if rendererMode == "qwen" { return qwenReady }
         return false
     }
     private var currentSampleOffset: Int64 {
@@ -279,8 +256,7 @@ import UIKit
     }
     var preparationMessage: String {
         guard preparing, !paused else { return "" }
-        if rendererMode == "qwen", renderedFrames == 0 { return L10n.tr("正在准备 Qwen 音色，首次准备和合成可能需要约一分钟。") }
-        if ["zipvoice", "zipvoice-male", "qwen"].contains(rendererMode), renderedFrames == 0 {
+        if ["zipvoice", "zipvoice-male"].contains(rendererMode), renderedFrames == 0 {
             return L10n.tr("正在准备所选音色，首次使用可能需要约半分钟。")
         }
         return L10n.tr("正在准备下一段朗读。")
@@ -347,21 +323,19 @@ import UIKit
         if testing && ProcessInfo.processInfo.arguments.contains("--retired-renderer-ui-testing") {
             preferences.set("matcha", forKey: "speechRenderer")
         }
+        if testing && ProcessInfo.processInfo.arguments.contains("--retired-qwen-ui-testing") {
+            preferences.set("qwen", forKey: "speechRenderer")
+        }
         #endif
         let savedRenderer = preferences.string(forKey: "speechRenderer")
         // 退役音色只迁移选择，保留文稿和阅读位置。
-        var allowedRenderers = ["system", "zipvoice", "zipvoice-male"]
-        #if os(macOS) && arch(arm64)
-        allowedRenderers.append("qwen")
-        #endif
-        if savedRenderer == "piper" { rendererMode = "zipvoice-male" }
-        else { rendererMode = allowedRenderers.contains(savedRenderer ?? "") ? savedRenderer! : "system" }
+        rendererMode = SpeechRendererSelection.restored(savedRenderer, zipVoiceReady: zipVoiceReady, maleReady: zipVoiceMaleReady)
+        preferences.set(rendererMode, forKey: "speechRenderer")
         if ProcessInfo.processInfo.arguments.contains("--system-speech-ui-testing") { rendererMode = "system" }
         #if DEBUG
         if testing && ProcessInfo.processInfo.arguments.contains("--light-speech-ui-testing") { rendererMode = "zipvoice" }
         if testing && ProcessInfo.processInfo.arguments.contains("--male-speech-ui-testing") { rendererMode = "zipvoice-male" }
         if testing && ProcessInfo.processInfo.arguments.contains("--zipvoice-ui-testing") { rendererMode = ProcessInfo.processInfo.arguments.contains("--zipvoice-male-ui-testing") ? "zipvoice-male" : "zipvoice" }
-        if testing && ProcessInfo.processInfo.arguments.contains("--qwen-ui-testing"), qwenReady { rendererMode = "qwen" }
         #endif
         preferences.removeObject(forKey: "kokoroVoiceID")
         restoreModelRate()
@@ -384,7 +358,7 @@ import UIKit
                 guard let self, self.playing, !self.paused, self.queuedCount == 0, self.inFlight, Date().timeIntervalSince(self.synthesisStarted) > 6 else { return }
                 // Native CPU/ANE preparation is allowed to finish under the audio
                 // background task; its device compilation can exceed six seconds.
-                guard !["zipvoice", "zipvoice-male", "qwen"].contains(self.rendererMode) else { return }
+                guard !["zipvoice", "zipvoice-male"].contains(self.rendererMode) else { return }
                 self.lastSynthesisFailure = "Background recovery interrupted pending synthesis"
                 self.recoverSynthesis()
             }
@@ -470,7 +444,7 @@ import UIKit
         systemFallback = false; systemRetryCount = 0; recoveryMessage = ""; lastSynthesisFailure = ""
         sessionRenderer = rendererMode; sessionVoice = requestedVoice(for: rendererMode)
         previewText = sample
-        guard let directory else { error = L10n.tr("离线中文音色文件缺失，请重新安装完整应用。"); return }
+        guard let directory = directory ?? (usesSystem ? cacheDirectory : nil) else { error = L10n.tr("离线中文音色文件缺失，请重新安装完整应用。"); return }
         guard let chunk = readingText.speechChunk(from: target, skipCode: skipCode, renderer: rendererMode) else { return }
         let cached = useCheckpoint && !preview ? cachedCheckpoint(for: chunk) : nil
         if let cached {
@@ -572,7 +546,7 @@ import UIKit
         synthesisWatchdog = Task { [weak self] in
             // Core ML performs device-specific compilation on first use.
             // Preserve the same source cursor while allowing that initial work.
-            try? await Task.sleep(for: .seconds(["zipvoice", "zipvoice-male", "qwen"].contains(selectedRenderer) ? 90 : 12))
+            try? await Task.sleep(for: .seconds(["zipvoice", "zipvoice-male"].contains(selectedRenderer) ? 90 : 12))
             guard !Task.isCancelled, let self, self.synthesisRequest == request, self.playing, self.inFlight else { return }
             self.recoverSynthesis()
         }
@@ -589,9 +563,6 @@ import UIKit
                 switch selectedRenderer {
                 case "system": guard let self else { return }; audio = try await self.systemRenderer.generate(text: synthesisText, voiceID: selectedVoice)
                 case "zipvoice", "zipvoice-male": audio = try await zipSynthesizer.generate(text: synthesisText, directory: directory.appendingPathComponent("ZipVoice"), referenceFile: selectedRenderer == "zipvoice-male" ? "reference-dylan.json" : "reference.json", cancellation: cancellation)
-                #if os(macOS)
-                case "qwen": guard let self, let modelDirectory = self.qwenDirectory else { throw SpeechFailure.initialization }; audio = try await self.qwenSynthesizer.generate(text: synthesisText, directory: modelDirectory, cancellation: cancellation)
-                #endif
                 default: throw SpeechFailure.initialization
                 }
                 #if DEBUG
@@ -951,23 +922,31 @@ import UIKit
         }
         do {
             let expectedVoice = rendererMode
+            if ProcessInfo.processInfo.arguments.contains("--retired-qwen-ui-testing") {
+                guard rendererMode == (zipVoiceReady ? "zipvoice" : "system"), preferences.string(forKey: "speechRenderer") == rendererMode else { throw SpeechFailure.generation }
+                record("retired-qwen-migrated")
+            }
+            if ProcessInfo.processInfo.arguments.contains("--missing-speech-ui-testing") {
+                guard !zipVoiceReady, rendererMode == "system" else { throw SpeechFailure.generation }
+                play(from: 1)
+                try await waitFor { renderedFrames > 4800 }
+                guard usesSystem else { throw SpeechFailure.generation }
+                record("missing-model-system-played"); stop()
+                try await Task.sleep(for: .milliseconds(600))
+                guard !playing, buffers.isEmpty, queuedCount == 0 else { throw SpeechFailure.generation }
+                record("passed"); return
+            }
             let initialRate = rate
-            guard initialRate == (expectedVoice == "qwen" ? 1.25 : 1) else { throw SpeechFailure.generation }
+            guard initialRate == 1 else { throw SpeechFailure.generation }
             rendererMode = "system"; rate = 1.1
-            rendererMode = "system"; rate = 1.15
+            rendererMode = "zipvoice"; rate = 1.15
             rendererMode = "zipvoice-male"
             guard rate == 1.15 else { throw SpeechFailure.generation }
-            #if arch(arm64)
-            if qwenReady {
-                rendererMode = "qwen"
-                guard rate == 1.25 else { throw SpeechFailure.generation }
-            }
-            #endif
             rendererMode = "system"
             guard rate == 1.1 else { throw SpeechFailure.generation }
             rendererMode = expectedVoice
             record("model-rates-independent")
-            rate = expectedVoice == "qwen" ? 1.25 : 1
+            rate = 1
             play(from: 1); record("started")
             try await waitFor { renderedFrames > 4800 }
             guard rendererMode == expectedVoice, !usesSystem, !systemFallback else { throw SpeechFailure.generation }
@@ -990,7 +969,24 @@ import UIKit
             record("paused-next-paragraph"); resume()
             try await waitFor { renderedFrames > 4800 }
             guard rendererMode == expectedVoice, !usesSystem, !systemFallback else { throw SpeechFailure.generation }
-            record("seek-native"); stop(); record("passed")
+            record("seek-native"); stop()
+            play(from: 1); stop()
+            try await Task.sleep(for: .milliseconds(600))
+            guard !playing, buffers.isEmpty, queuedCount == 0 else { throw SpeechFailure.generation }
+            record("pending-synthesis-cancelled")
+            rendererMode = "system"; play(from: 1)
+            try await waitFor { renderedFrames > 4800 }
+            guard usesSystem else { throw SpeechFailure.generation }
+            record("switched-system-played")
+            rendererMode = "zipvoice-male"
+            guard !playing, buffers.isEmpty else { throw SpeechFailure.generation }
+            play(from: 1)
+            try await waitFor { renderedFrames > 4800 }
+            guard !usesSystem, rendererMode == "zipvoice-male" else { throw SpeechFailure.generation }
+            record("switched-male-played")
+            rendererMode = "zipvoice"
+            guard !playing, buffers.isEmpty else { throw SpeechFailure.generation }
+            record("voice-switch-stopped"); stop(); record("passed")
         } catch { stop(); record("failed: " + error.localizedDescription) }
     }
     #endif

@@ -11,10 +11,7 @@
 "%@《%@》· %@ 个文件" = "%@ “%@” · %@ files";
 "Dylan · 京腔男声" = "Dylan · Beijing male voice";
 "Matcha · 轻量中文女声 · 本地离线" = "Matcha · Lightweight Chinese female voice · Offline";
-"ZipVoice 提供本地男声和女声；Apple 芯片 Mac 还提供 Qwen Serena。所有音色均本地离线，倍率立即生效；合成失败会用系统音色从未读处继续。原生音色首次使用需要准备，之后会复用缓存。Qwen 测试模型目前速度低于实时，适合逐段试听，连续阅读会等待下一段。" = "ZipVoice provides local male and female voices. Qwen Serena is also available on Apple silicon Macs. All voices run offline; speed changes take effect immediately. If synthesis fails, a system voice continues from the unread text. The first use requires preparation; subsequent playback reuses the cache. The experimental Qwen model is slower than real time, so continuous playback pauses while the next passage is generated.";
 "Piper 超文 · 轻量中文男声 · 本地离线" = "Piper Chaowen · Lightweight Chinese male voice · Offline";
-"Qwen Serena · 自然中文女声 · 本地离线" = "Qwen Serena · Natural Chinese female voice · Offline";
-"Qwen · 测试模型" = "Qwen · Experimental";
 "Serena · 中文女声" = "Serena · Chinese female voice";
 "Serena · 温柔女声" = "Serena · Gentle female voice";
 "UI 测试不触发局域网授权。" = "UI tests do not request local network access.";
@@ -267,7 +264,6 @@
 "查看本机文稿" = "Browse local documents";
 "正则表达式" = "Regular expression";
 "正在保存已校验的文件…" = "Saving verified files…";
-"正在准备 Qwen 音色，首次准备和合成可能需要约一分钟。" = "Preparing the Qwen voice. Initial preparation and synthesis may take about a minute.";
 "正在准备下一段朗读。" = "Preparing the next passage.";
 "正在准备所选音色，首次使用可能需要约半分钟。" = "Preparing the selected voice. First use may take about half a minute.";
 "正在准备这一页" = "Preparing this page";
@@ -512,3 +508,5 @@
 "文稿没有可朗读的正文。" = "This document has no readable text for narration.";
 
 "列模式：单指拖动选择，双指滚动" = "Column mode: drag with one finger to select, two fingers to scroll";
+
+"ZipVoice 提供本地男声和女声，所有音色均本地离线。倍率立即生效；合成失败会用系统音色从未读处继续。原生音色首次使用需要准备，之后会复用缓存。" = "ZipVoice provides local male and female voices. All voices run offline. Speed changes take effect immediately; if synthesis fails, a system voice continues from the unread position. Native voices need preparation on first use and then reuse the cache.";

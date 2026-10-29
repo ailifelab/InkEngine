@@ -137,19 +137,15 @@
     },
     {
       "id": "qwen",
-      "name": "Qwen3-TTS CustomVoice model and synthetic reference provenance",
+      "name": "Qwen3-TTS synthetic reference provenance",
       "declaredLicense": "Apache-2.0",
       "source": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
-      "revision": "see SpeechMac/Qwen/SOURCE.json and Speech/ZipVoice/SOURCE.json",
+      "revision": "see Speech/ZipVoice/SOURCE.json",
       "scope": "model",
       "distributionReview": "published-model-license",
       "licenseFiles": [
         {
           "path": "App/Resources/Speech/ZipVoice/QWEN-REFERENCE-LICENSE",
-          "sha256": "a44a6081c73ad75f0255bb2bb5cab74ef1829565a895a24e53a4f11290ab7655"
-        },
-        {
-          "path": "App/Resources/SpeechMac/Qwen/LICENSE-model",
           "sha256": "a44a6081c73ad75f0255bb2bb5cab74ef1829565a895a24e53a4f11290ab7655"
         }
       ],
@@ -177,7 +173,8 @@
           "sha256": "8b86cbde30daef6bfac0780dee1649be3b2de2abf4ecdefd5b7099df212c5a1d"
         }
       ],
-      "modifications": "Local model loading, actor adapter, Core ML integration and cancellation; see NATIVE-SPEECH-SOURCES.json."
+      "modifications": "Local model loading, actor adapter, Core ML integration and cancellation; see NATIVE-SPEECH-SOURCES.json.",
+      "includedInCurrentApp": false
     },
     {
       "id": "mobius",

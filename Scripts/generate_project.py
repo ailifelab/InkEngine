@@ -28,6 +28,12 @@ def development_teams():
     return {}
 
 DEVELOPMENT_TEAMS = development_teams()
+# Preserve Xcode-added warning, compiler and module verification settings when regenerating.
+existing_project = ROOT/'InkEngine.xcodeproj/project.pbxproj'
+EXISTING_SETTINGS = {}
+if existing_project.exists():
+    entries = json.loads(subprocess.check_output(['/usr/bin/plutil', '-convert', 'json', '-o', '-', str(existing_project)]))['objects']
+    EXISTING_SETTINGS = {key: value['buildSettings'] for key, value in entries.items() if value.get('isa') == 'XCBuildConfiguration'}
 objects = {}
 def ident(name): return hashlib.sha1(name.encode()).hexdigest()[:24].upper()
 def obj(name, body):
@@ -37,7 +43,10 @@ def array(values): return '(' + ', '.join(values) + ',)'
 def configs(name, settings):
     configs = []
     for mode in ['Debug', 'Release']:
-        merged = dict(settings)
+        merged = dict(EXISTING_SETTINGS.get(ident(name+mode), {}))
+        merged.update(settings)
+        for retired in ('EXCLUDED_SOURCE_FILE_NAMES[sdk=iphoneos*]', 'EXCLUDED_SOURCE_FILE_NAMES[sdk=iphonesimulator*]'):
+            if merged.get(retired) == 'SpeechMac': merged.pop(retired)
         if name in ['InkEngine', 'InkEngineUITests']:
             merged['DEVELOPMENT_TEAM'] = DEVELOPMENT_TEAMS.get(mode, '')
         merged['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone' if mode == 'Debug' else '-O'
@@ -67,7 +76,6 @@ core_phase = obj('InkCoreSources', 'isa = PBXSourcesBuildPhase; buildActionMask 
 core_config = configs('InkCore', dict(PRODUCT_NAME='InkCore', PRODUCT_MODULE_NAME='InkCore', DEFINES_MODULE='YES', SWIFT_VERSION='5.0', SKIP_INSTALL='YES', SDKROOT='auto', SUPPORTED_PLATFORMS='macosx iphoneos iphonesimulator', MACOSX_DEPLOYMENT_TARGET='26.0', IPHONEOS_DEPLOYMENT_TARGET='26.0', CODE_SIGNING_ALLOWED='NO'))
 core_target = obj('InkCore', 'isa = PBXNativeTarget; name = InkCore; productName = InkCore; productType = "com.apple.product-type.library.static"; productReference = '+core_product+'; buildConfigurationList = '+core_config+'; buildPhases = '+array([core_phase])+'; buildRules = (); dependencies = ();'); targets.append(core_target)
 speech_resources = obj('SpeechResources', 'isa = PBXFileReference; lastKnownFileType = folder; path = App/Resources/Speech; sourceTree = SOURCE_ROOT;')
-speech_mac_resources = obj('SpeechMacResources', 'isa = PBXFileReference; lastKnownFileType = folder; path = App/Resources/SpeechMac; sourceTree = SOURCE_ROOT;')
 privacy_resource = obj('PrivacyResource', 'isa = PBXFileReference; lastKnownFileType = text.xml; path = App/Resources/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT;')
 legal_resource = obj('LegalResource', 'isa = PBXFileReference; lastKnownFileType = folder; path = App/Resources/Legal; sourceTree = SOURCE_ROOT;')
 localized_resources = []
@@ -90,15 +98,12 @@ for platform in ['Universal']:
     frameworks = obj(name+'Frameworks', 'isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = '+array([core_build,runtime_build])+'; runOnlyForDeploymentPostprocessing = 0;')
     asset_build = obj(name+'AssetsBuild', 'isa = PBXBuildFile; fileRef = '+assets+';')
     model_build = obj(name+'ModelBuild', 'isa = PBXBuildFile; fileRef = '+speech_resources+';')
-    mac_model_build = obj(name+'MacModelBuild', 'isa = PBXBuildFile; fileRef = '+speech_mac_resources+'; platformFilters = (macos,);')
     privacy_build = obj(name+'PrivacyBuild', 'isa = PBXBuildFile; fileRef = '+privacy_resource+';')
     legal_build = obj(name+'LegalBuild', 'isa = PBXBuildFile; fileRef = '+legal_resource+';')
     localized_builds = [obj(name+'LocalizedBuild'+ref, 'isa = PBXBuildFile; fileRef = '+ref+';') for ref in localized_resources]
-    resource_phase = obj(name+'Resources','isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = '+array([asset_build,model_build,mac_model_build,privacy_build,legal_build]+localized_builds)+'; runOnlyForDeploymentPostprocessing = 0;')
-    settings = dict(INK_APP_DISPLAY_NAME='墨语引擎', PRODUCT_NAME='Ink Engine', PRODUCT_BUNDLE_IDENTIFIER='org.ailifelab.InkEngine', INFOPLIST_FILE='Config/InkEngine-Info.plist', SWIFT_VERSION='5.0', CODE_SIGN_STYLE='Automatic', GENERATE_INFOPLIST_FILE='NO', MARKETING_VERSION='0.3.3', CURRENT_PROJECT_VERSION='9', ENABLE_USER_SCRIPT_SANDBOXING='YES', ASSETCATALOG_COMPILER_APPICON_NAME='AppIcon')
+    resource_phase = obj(name+'Resources','isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = '+array([asset_build,model_build,privacy_build,legal_build]+localized_builds)+'; runOnlyForDeploymentPostprocessing = 0;')
+    settings = dict(INK_APP_DISPLAY_NAME='墨语引擎', PRODUCT_NAME='Ink Engine', PRODUCT_BUNDLE_IDENTIFIER='org.ailifelab.InkEngine', INFOPLIST_FILE='Config/InkEngine-Info.plist', SWIFT_VERSION='5.0', CODE_SIGN_STYLE='Automatic', GENERATE_INFOPLIST_FILE='NO', MARKETING_VERSION='0.3.3', CURRENT_PROJECT_VERSION='12', ENABLE_USER_SCRIPT_SANDBOXING='YES', ASSETCATALOG_COMPILER_APPICON_NAME='AppIcon')
     settings.update(SDKROOT='auto', SUPPORTED_PLATFORMS='macosx iphoneos iphonesimulator', MACOSX_DEPLOYMENT_TARGET='26.0', IPHONEOS_DEPLOYMENT_TARGET='26.0', TARGETED_DEVICE_FAMILY='1,2', SUPPORTS_MACCATALYST='NO')
-    settings['EXCLUDED_SOURCE_FILE_NAMES[sdk=iphoneos*]'] = 'SpeechMac'
-    settings['EXCLUDED_SOURCE_FILE_NAMES[sdk=iphonesimulator*]'] = 'SpeechMac'
     settings['ARCHS[sdk=macosx*]'] = 'arm64'
     settings['CODE_SIGN_IDENTITY[sdk=macosx*]'] = '-'
     settings['CODE_SIGN_ENTITLEMENTS[sdk=macosx*]'] = 'Config/Mac.entitlements'
@@ -136,7 +141,7 @@ def insert_file(path, reference):
 for path, reference in zip(app_paths, sources): insert_file(path.relative_to(ROOT), reference)
 for path, reference in zip(core_paths, core_sources): insert_file(path.relative_to(ROOT), reference)
 for filename, reference in zip(['Localizable.strings', 'InfoPlist.strings'], localized_resources): insert_file(Path('App/Resources/Localization')/filename, reference)
-for path, reference in [(Path('App/Resources/PrivacyInfo.xcprivacy'), privacy_resource), (Path('App/Resources/Legal'), legal_resource), (Path('App/Assets.xcassets'), assets), (Path('App/Resources/Speech'), speech_resources), (Path('App/Resources/SpeechMac'), speech_mac_resources), (Path('UITests/InkEngineUITests.swift'), ui_path)]: insert_file(path, reference)
+for path, reference in [(Path('App/Resources/PrivacyInfo.xcprivacy'), privacy_resource), (Path('App/Resources/Legal'), legal_resource), (Path('App/Assets.xcassets'), assets), (Path('App/Resources/Speech'), speech_resources), (Path('UITests/InkEngineUITests.swift'), ui_path)]: insert_file(path, reference)
 for folder in ['Config', 'Scripts', 'Tests/InkCoreTests']:
     for path in sorted((ROOT/folder).glob('*')):
         if path.is_file() and '.local.' not in path.name and not (path.parent == ROOT/'Docs' and path.name != 'Installation.md') and not (path.parent == ROOT/'Samples' and path.name != '听读校稿示例.md') and path.suffix in ['.swift', '.py', '.sh', '.plist', '.entitlements', '.json']:

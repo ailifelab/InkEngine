@@ -65,7 +65,6 @@
 		C71DAC40BA279EC1CCF69DFD /* LicenseTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA283978EA68F637A2A7B98 /* LicenseTextView.swift */; };
 		CC8DB4263EE6082096675202 /* libInkCore.a in Frameworks */ = {isa = PBXBuildFile; fileRef = EF902DF2D84A13E35219EC07 /* libInkCore.a */; };
 		CF53DDE45877BF6ACD1E3AA6 /* SpeechEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DEDD5F9D12C71B4D59375C2 /* SpeechEngine.swift */; };
-		D284CBA86B1F09F79432F42A /* App/Resources/SpeechMac in Resources */ = {isa = PBXBuildFile; fileRef = 5BA9ED2FA522A7AC0CC33369 /* App/Resources/SpeechMac */; platformFilters = (macos, ); };
 		D4DE098C45B092CCF2A56CD1 /* WorkspaceSceneBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 449F5BF808C1079D7B3F7F0D /* WorkspaceSceneBridge.swift */; };
 		D74B09A657BB14B718F82C9C /* ReadingBookmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCE8F2F13AAE6E0A0B631D26 /* ReadingBookmark.swift */; };
 		D78676A8545773DFF89008FD /* SourceLineIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DC6A69171A94470ED42E2B5 /* SourceLineIndex.swift */; };
@@ -78,6 +77,7 @@
 		F8E0F3DEBC5DA9E04C31CD86 /* HistoryPinDrag.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6577620ABC1ECEDA98FD98 /* HistoryPinDrag.swift */; };
 		FAE7CEF0D5D9419055623931 /* FindReplace.swift in Sources */ = {isa = PBXBuildFile; fileRef = D39E3C31C5C3372BD533E353 /* FindReplace.swift */; };
 		FB3DFBD236FE80BDB3283771 /* OutlineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87E4510C59421C587CA6EFD2 /* OutlineView.swift */; };
+		7C7DEDF393BC78C0262A3E5B /* SpeechRendererSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B5AD8F145C61C534CDE0C9D /* SpeechRendererSelection.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -134,7 +134,6 @@
 		4F84C88A2BA1870FA43FDA1A /* NovelCollectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NovelCollectionTests.swift; path = Tests/InkCoreTests/NovelCollectionTests.swift; sourceTree = SOURCE_ROOT; };
 		5120B2233309AA7AA083C272 /* Mac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = Mac.entitlements; path = Config/Mac.entitlements; sourceTree = SOURCE_ROOT; };
 		56C02AFE5544D2D0A3AD072E /* test-nearby-simulators.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = "test-nearby-simulators.py"; path = "Scripts/test-nearby-simulators.py"; sourceTree = SOURCE_ROOT; };
-		5BA9ED2FA522A7AC0CC33369 /* App/Resources/SpeechMac */ = {isa = PBXFileReference; lastKnownFileType = folder; path = App/Resources/SpeechMac; sourceTree = SOURCE_ROOT; };
 		5C9CDB3A8E98A04125FA7EC3 /* DocumentTransferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DocumentTransferTests.swift; path = Tests/InkCoreTests/DocumentTransferTests.swift; sourceTree = SOURCE_ROOT; };
 		5DC6A69171A94470ED42E2B5 /* SourceLineIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SourceLineIndex.swift; path = Sources/InkCore/Parsing/SourceLineIndex.swift; sourceTree = SOURCE_ROOT; };
 		60E14F73806AC6843535C0D2 /* SyntaxHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SyntaxHighlighter.swift; path = Sources/InkCore/Parsing/SyntaxHighlighter.swift; sourceTree = SOURCE_ROOT; };
@@ -213,6 +212,7 @@
 		F8CBE9DD33DD26F3CEC7FC38 /* prepare_legal.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = prepare_legal.py; path = Scripts/prepare_legal.py; sourceTree = SOURCE_ROOT; };
 		FD4B6CB3A0EE760582780D19 /* TabbedWorkspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TabbedWorkspace.swift; path = App/Views/Workspace/TabbedWorkspace.swift; sourceTree = SOURCE_ROOT; };
 		FFDC8B8A15BD8B673F376DB8 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppModel.swift; path = App/Models/AppModel.swift; sourceTree = SOURCE_ROOT; };
+		2B5AD8F145C61C534CDE0C9D /* SpeechRendererSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpeechRendererSelection.swift; path = Sources/InkCore/Speech/SpeechRendererSelection.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -457,7 +457,6 @@
 				7E5F4EBD43113CE78D75415C /* App/Resources/Legal */,
 				2382F4281C2C5F4C00237B85 /* App/Resources/PrivacyInfo.xcprivacy */,
 				4D3E22B115CC70EBF9C236EA /* App/Resources/Speech */,
-				5BA9ED2FA522A7AC0CC33369 /* App/Resources/SpeechMac */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -578,6 +577,7 @@
 				81A0DB9DBAC3C799166C7626 /* NeuralSpeechPlan.swift */,
 				C787C57DBF788EF881E814FF /* PronunciationDictionary.swift */,
 				927D0E565E909FDAEFCAF42B /* SpeechInput.swift */,
+				2B5AD8F145C61C534CDE0C9D /* SpeechRendererSelection.swift */,
 				9889C911BC9C300CC1DC1C71 /* SpeechRatePolicy.swift */,
 			);
 			name = Speech;
@@ -702,7 +702,6 @@
 			files = (
 				0C349E5B05503A00FE2C3F03 /* App/Assets.xcassets in Resources */,
 				406CF821611207212B0280BF /* App/Resources/Speech in Resources */,
-				D284CBA86B1F09F79432F42A /* App/Resources/SpeechMac in Resources */,
 				965E141BBE342D62F52CCF1B /* App/Resources/PrivacyInfo.xcprivacy in Resources */,
 				C6B1F396D55D76588AF350F7 /* App/Resources/Legal in Resources */,
 				7F95862F4A6AED48D5E3E0B1 /* Localizable.strings in Resources */,
@@ -737,6 +736,7 @@
 				7C30C047172E8163BD33DFF9 /* NeuralSpeechPlan.swift in Sources */,
 				6CE0F89BF118EBBB860C7612 /* PronunciationDictionary.swift in Sources */,
 				94316935C3DAA4C368C0A84F /* SpeechInput.swift in Sources */,
+				7C7DEDF393BC78C0262A3E5B /* SpeechRendererSelection.swift in Sources */,
 				3A3489626A9287CA828E3B6E /* SpeechRatePolicy.swift in Sources */,
 				5A7EE4F347922E6DEBEFFC43 /* DocumentTransfer.swift in Sources */,
 				03FBA4CDB6EC63FFF19BE26F /* TransferProtocol.swift in Sources */,
@@ -884,14 +884,12 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 12;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "";
 				"ENABLE_HARDENED_RUNTIME[sdk=macosx*]" = NO;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				"EXCLUDED_SOURCE_FILE_NAMES[sdk=iphoneos*]" = SpeechMac;
-				"EXCLUDED_SOURCE_FILE_NAMES[sdk=iphonesimulator*]" = SpeechMac;
 				GENERATE_INFOPLIST_FILE = YES;
 				INK_APP_DISPLAY_NAME = "墨语引擎";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -941,14 +939,12 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 12;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = "";
 				"ENABLE_HARDENED_RUNTIME[sdk=macosx*]" = NO;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				"EXCLUDED_SOURCE_FILE_NAMES[sdk=iphoneos*]" = SpeechMac;
-				"EXCLUDED_SOURCE_FILE_NAMES[sdk=iphonesimulator*]" = SpeechMac;
 				GENERATE_INFOPLIST_FILE = YES;
 				INK_APP_DISPLAY_NAME = "墨语引擎";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -1043,14 +1039,12 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 12;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "";
 				"ENABLE_HARDENED_RUNTIME[sdk=macosx*]" = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				"EXCLUDED_SOURCE_FILE_NAMES[sdk=iphoneos*]" = SpeechMac;
-				"EXCLUDED_SOURCE_FILE_NAMES[sdk=iphonesimulator*]" = SpeechMac;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Config/InkEngine-Info.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
@@ -1079,14 +1073,12 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 12;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = "";
 				"ENABLE_HARDENED_RUNTIME[sdk=macosx*]" = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				"EXCLUDED_SOURCE_FILE_NAMES[sdk=iphoneos*]" = SpeechMac;
-				"EXCLUDED_SOURCE_FILE_NAMES[sdk=iphonesimulator*]" = SpeechMac;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Config/InkEngine-Info.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";

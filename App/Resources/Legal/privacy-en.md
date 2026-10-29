@@ -4,7 +4,7 @@ Version: 2026-10-15. Applies to the current offline version of Ink Engine. Opera
 
 ## Processing on your device
 
-No account is required. Documents, folder indexes, reading positions, bookmarks, editing history, pronunciation rules, voice settings and generated audio are stored locally. On Mac, you can edit original files authorized through the system picker; on iPhone and iPad, you can import documents and manage local copies. The built-in ZipVoice and Mac Qwen models synthesize speech on your device and do not upload document text to us or third-party speech servers. Apple system voices are provided by system services. Voice downloads and system service behavior are governed by Apple's policies and your system settings.
+No account is required. Documents, folder indexes, reading positions, bookmarks, editing history, pronunciation rules, voice settings and generated audio are stored locally. On Mac, you can edit original files authorized through the system picker; on iPhone and iPad, you can import documents and manage local copies. The built-in ZipVoice models synthesize speech on your device and do not upload document text to us or third-party speech servers. Apple system voices are provided by system services. Voice downloads and system service behavior are governed by Apple's policies and your system settings.
 
 ## Nearby device sync
 

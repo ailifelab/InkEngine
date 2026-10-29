@@ -30,10 +30,7 @@ struct SpeechSettings: View {
                         selectionHeader(L10n.tr("语音模型"), value: selectedModelName, expanded: $choosingModel, identifier: "speechRendererPicker")
                         if choosingModel {
                             choice(L10n.tr("系统语音"), value: "system", selection: $speech.selectedModel, identifier: "speechModel-system")
-                            if speech.zipVoiceMaleReady { choice("ZipVoice", value: "zipvoice", selection: $speech.selectedModel, identifier: "speechModel-zipvoice") }
-                            #if os(macOS) && arch(arm64)
-                            if speech.qwenReady { choice(L10n.tr("Qwen · 测试模型"), value: "qwen", selection: $speech.selectedModel, identifier: "speechModel-qwen") }
-                            #endif
+                            if speech.zipVoiceReady { choice("ZipVoice", value: "zipvoice", selection: $speech.selectedModel, identifier: "speechModel-zipvoice") }
                         }
                         if speech.selectedModel == "zipvoice" {
                             selectionHeader(L10n.tr("音色"), value: speech.selectedZipVoice == "dylan" ? L10n.tr("Dylan · 京腔男声") : L10n.tr("Serena · 温柔女声"), expanded: $choosingZipVoice, identifier: "zipVoicePicker")
@@ -41,8 +38,6 @@ struct SpeechSettings: View {
                                 choice(L10n.tr("Serena · 温柔女声"), value: "serena", selection: $speech.selectedZipVoice, identifier: "zipVoice-serena")
                                 if speech.zipVoiceMaleReady { choice(L10n.tr("Dylan · 京腔男声"), value: "dylan", selection: $speech.selectedZipVoice, identifier: "zipVoice-dylan") }
                             }
-                        } else if speech.rendererMode == "qwen" {
-                            selectionLabel(L10n.tr("音色"), value: L10n.tr("Serena · 中文女声"))
                         }
                         if speech.rendererMode == "system" {
                             selectionHeader(L10n.tr("音色"), value: speech.systemVoices.first(where: { $0.identifier == speech.systemVoiceID }).map(voiceName) ?? speech.voiceDescription, expanded: $choosingSystemVoice, identifier: "systemMandarinVoicePicker")
@@ -56,7 +51,7 @@ struct SpeechSettings: View {
                     }
                     Text(speech.voiceDescription).font(.caption).accessibilityIdentifier("selectedVoice")
                     Button(L10n.tr("试听所选音色")) { speech.audition() }.disabled(!speech.offlineReady).accessibilityIdentifier("audition")
-                    Text(L10n.tr("ZipVoice 提供本地男声和女声；Apple 芯片 Mac 还提供 Qwen Serena。所有音色均本地离线，倍率立即生效；合成失败会用系统音色从未读处继续。原生音色首次使用需要准备，之后会复用缓存。Qwen 测试模型目前速度低于实时，适合逐段试听，连续阅读会等待下一段。"))
+                    Text(L10n.tr("ZipVoice 提供本地男声和女声，所有音色均本地离线。倍率立即生效；合成失败会用系统音色从未读处继续。原生音色首次使用需要准备，之后会复用缓存。"))
                         .font(.caption).foregroundStyle(.secondary)
                 }.listRowBackground(model.readingTheme.sidebar)
                 Section(L10n.tr("听读")) {
@@ -118,7 +113,6 @@ struct SpeechSettings: View {
     private var selectedModelName: String {
         switch speech.selectedModel {
         case "zipvoice": "ZipVoice"
-        case "qwen": L10n.tr("Qwen · 测试模型")
         default: L10n.tr("系统语音")
         }
     }

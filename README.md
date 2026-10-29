@@ -22,7 +22,7 @@ Mac 与 iPad 支持多标签、左右分屏、克隆视图和多窗口。同一�
 
 ## 先看实际界面
 
-以下为 **Mac 0.3.3（9）的真实界面**，使用人工编写的 [山间来信示例](Docs/Media/demo-manuscript.md)。iPhone 与 iPad 布局随屏幕调整。
+以下为 **Mac 0.3.3 的真实界面**，使用人工编写的 [山间来信示例](Docs/Media/demo-manuscript.md)。iPhone 与 iPad 布局随屏幕调整。
 
 **编辑：打开文稿后直接修改正文，底部选择语法。**
 
@@ -31,6 +31,10 @@ Mac 与 iPad 支持多标签、左右分屏、克隆视图和多窗口。同一�
 **阅读与听读：切换到阅读模式，下方可以开始、暂停、调速和跳段。**
 
 ![Mac 阅读界面：章节目录、阅读正文和朗读控制](Docs/Media/mac-reader.png)
+
+**声音设置：系统语音与 ZipVoice，可切换本地男声和女声。**
+
+![Mac 声音设置：系统语音与 ZipVoice](Docs/Media/mac-speech-settings.jpg)
 
 ## 第一次使用
 
@@ -59,9 +63,8 @@ App Store 版本及可用地区请查看 [App Store 产品页](https://apps.appl
 | 模型 | 可用音色 | 平台 | 当前执行方式 |
 | --- | --- | --- | --- |
 | ZipVoice | Serena 女声、Dylan 男声 | Mac、iPhone、iPad | Core ML 四步、CPU |
-| Qwen 0.6B | Serena 女声，测试模型 | Apple 芯片 Mac | Core ML decoder 使用 GPU，vocoder 使用 CPU |
 
-菜单按模型分组，同一模型的音色在二级菜单切换。各模型独立记住语速。Qwen 初始播放语速 1.25 倍；当前合成仍慢于实时，适合分段试听，不能保证连续长篇不等待。语速由播放器调整，不裁切音节。系统音色可手动选择，也用于合成失败后的提示与恢复。Piper 已撤下。
+菜单按模型分组，同一模型的音色在二级菜单切换。各模型独立记住语速。语速由播放器调整，不裁切音节。系统音色可手动选择，也用于合成失败后的提示与恢复。Piper 已撤下。
 
 少见人名与多音字可以添加自定义纠音。
 

@@ -3352,6 +3352,51 @@ final class InkEngineUITests: XCTestCase {
         try checkOfflinePCMPauseSeekAndResume(renderer: "matcha", flag: "--light-speech-ui-testing")
     }
     func testPiperMaleActualPCMPauseSeekAndResume() throws { try XCTSkipIf(true, "Piper voice retired") }
+    func testRetiredQwenMigratesAndCannotBeSelected() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--reset-ui-testing", "--speech-ui-testing", "--retired-qwen-ui-testing"]
+        launch(app); openBook("校稿测试", app: app)
+        documentAction("speechSettings", app: app).press()
+        XCTAssertTrue(app.staticTexts["selectedVoice"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["selectedVoice"].label.contains("ZipVoice"))
+        app.descendants(matching: .any)["speechRendererPicker"].firstMatch.press()
+        XCTAssertTrue(app.buttons["speechModel-zipvoice"].exists)
+        XCTAssertFalse(app.buttons["speechModel-qwen"].exists)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'Qwen'")).firstMatch.exists)
+        app.buttons["speechModel-zipvoice"].press()
+        app.buttons["closeSpeechSettings"].press()
+        let play = app.buttons["playPause"].firstMatch
+        play.press()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let e = (play.value as? String ?? "").components(separatedBy: "|")
+            return e.count > 16 && e[15] == "zipvoice" && e[16] == "false" && (Int64(e[2]) ?? 0) > 4800
+        }, object: nil)], timeout: 100), .completed)
+        app.buttons["stopSpeech"].press()
+        let stopped = play.value as? String ?? ""
+        XCTAssertTrue(stopped.contains("|stopped|"))
+        RunLoop.current.run(until: Date().addingTimeInterval(1))
+        XCTAssertEqual(play.value as? String ?? "", stopped, "Cancelled synthesis must not restart playback")
+    }
+    func testRetiredQwenWithoutModelsFallsBackToSystemSpeech() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--reset-ui-testing", "--speech-ui-testing", "--retired-qwen-ui-testing", "--missing-speech-ui-testing"]
+        launch(app); openBook("校稿测试", app: app)
+        documentAction("speechSettings", app: app).press()
+        XCTAssertTrue(app.staticTexts["selectedVoice"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["selectedVoice"].label.contains("ZipVoice"))
+        app.descendants(matching: .any)["speechRendererPicker"].firstMatch.press()
+        XCTAssertFalse(app.buttons["speechModel-qwen"].exists)
+        XCTAssertFalse(app.buttons["speechModel-zipvoice"].exists)
+        app.buttons["speechModel-system"].press()
+        app.buttons["closeSpeechSettings"].press()
+        let play = app.buttons["playPause"].firstMatch
+        play.press()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let e = (play.value as? String ?? "").components(separatedBy: "|")
+            return e.count > 16 && e[15] == "system" && (Int64(e[2]) ?? 0) > 4800
+        }, object: nil)], timeout: 45), .completed)
+        app.buttons["stopSpeech"].press()
+    }
     func testZipVoiceCoreMLActualPCMPauseSeekAndResume() throws {
         try checkOfflinePCMPauseSeekAndResume(renderer: "zipvoice", flag: "--zipvoice-ui-testing")
     }

@@ -9,11 +9,9 @@ let package = Package(
         .binaryTarget(name: "ORTMac", path: "Frameworks/ORTMac.xcframework"),
         .binaryTarget(name: "ORTIOS", path: "Frameworks/ORTIOS.xcframework"),
         .target(name: "SpeechRuntime", dependencies: [
-            .target(name: "NativeQwen", condition: .when(platforms: [.macOS])),
             .target(name: "ORTMac", condition: .when(platforms: [.macOS])),
             .target(name: "ORTIOS", condition: .when(platforms: [.iOS]))
-        ], exclude: ["MatchaSynthesizer.swift", "VitsSynthesizer.swift"], linkerSettings: [.linkedLibrary("c++"), .linkedFramework("CoreML"), .linkedFramework("Accelerate")]),
-        .target(name: "NativeQwen", exclude: ["LICENSE.txt"], linkerSettings: [.linkedFramework("CoreML")]),
+        ], exclude: ["MatchaSynthesizer.swift", "VitsSynthesizer.swift", "QwenSynthesizer.swift"], linkerSettings: [.linkedLibrary("c++"), .linkedFramework("CoreML"), .linkedFramework("Accelerate")]),
         .testTarget(name: "SpeechRuntimeTests", dependencies: ["SpeechRuntime"])
     ]
 )

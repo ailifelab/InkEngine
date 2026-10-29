@@ -61,7 +61,8 @@ print(f'Verified {len(files(source))} bundled speech resources, app icon, identi
 PY
 
 version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")
-name="InkEngine-${version}-macOS-arm64-local"
+build=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$app/Contents/Info.plist")
+name="InkEngine-${version}-macOS-arm64-build${build}"
 output="$PWD/Releases/$version"
 mkdir -p "$output"
 ln -s /Applications "$stage/Applications"
@@ -79,7 +80,6 @@ cat > "$stage/安装说明.txt" <<EOF
 应用的标识保持不变，书库与偏好保存在应用数据目录中。
 安装包不包含个人文稿、书签、历史或语音缓存。
 ZipVoice Serena 女声与 Dylan 男声及运行库已内置。
-Mac 额外提供 Qwen Serena 测试模型，初始朗读语速 1.25 倍；合成仍低于实时，适合分段试听。
 以上模型均可本地离线合成；系统朗读使用已安装的音色。
 
 签名身份：${MAC_SIGNING_IDENTITY}

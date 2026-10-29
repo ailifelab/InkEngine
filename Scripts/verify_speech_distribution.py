@@ -31,14 +31,14 @@ def verify(app):
                 raise ValueError('Framework minimum OS is below its binary target: ' + framework.name)
             if version(declared) > version(metadata['MinimumOSVersion']):
                 raise ValueError('Framework requires a newer OS than the app: ' + framework.name)
-    forbidden = re.compile(r'(?:^|/)(?:Matcha|Piper|espeak-ng-data|Sherpa[^/]*)(?:/|$)', re.I)
+    forbidden = re.compile(r'(?:^|/)(?:Qwen|SpeechMac|Matcha|Piper|espeak-ng-data|Sherpa[^/]*)(?:/|$)', re.I)
     paths = [str(p.relative_to(app)) for p in app.rglob('*') if forbidden.search(str(p.relative_to(app)))]
     if paths:
         raise ValueError('Retired assets remain: ' + ', '.join(paths[:20]))
     symbols = subprocess.check_output(['nm', '-a', str(executable)], text=True, stderr=subprocess.DEVNULL)
     # Search each token once. A leading greedy \S* retried at every character
     # becomes quadratic on long Swift mangled symbols in Release binaries.
-    retired_symbol = re.compile(r'SherpaOnnx|[Ee]speak_|piper_phonemize|MatchaSynthesizer|VitsSynthesizer')
+    retired_symbol = re.compile(r'SherpaOnnx|[Ee]speak_|piper_phonemize|MatchaSynthesizer|VitsSynthesizer|QwenSynthesizer|NativeQwen')
     found = sorted({match.group() for match in re.finditer(r'\S+', symbols) if retired_symbol.search(match.group())})
     if found:
         raise ValueError('Retired native symbols remain: ' + ', '.join(found[:20]))

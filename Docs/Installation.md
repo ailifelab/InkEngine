@@ -1,6 +1,6 @@
 # Installation and signing
 
-Source version: **0.3.3 (9)**. Published installers and checksums are listed on [GitHub Releases](https://github.com/ailifelab/InkEngine/releases).
+Source version: **0.3.3 (12)**. The retained unsigned iOS installer is **0.3.3 (9)**, built from application commit `244de6a`; the Mac build includes the subsequent Qwen removal. Published installers and checksums are listed on [GitHub Releases](https://github.com/ailifelab/InkEngine/releases).
 
 ## Mac
 
